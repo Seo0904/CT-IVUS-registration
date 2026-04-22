@@ -1,0 +1,72 @@
+----------------- Options ---------------
+               batch_size: 1                             
+          checkpoints_dir: ./checkpoints                 
+                crop_size: 256                           
+              data_file_A: mnist_test_seq.npy            
+              data_file_B: transformed_aligned.npy       	[default: transformed.npy]
+                 dataroot: /workspace/data/org_data/moving_mnist	[default: placeholder]
+               dataroot_B: /workspace/data/preprocessed/bspline_transformed	[default: ]
+             dataset_mode: moving_mnist_paired           	[default: unaligned]
+                direction: AtoB                          
+          display_winsize: 256                           
+               easy_label: experiment_name               
+            embedding_dim: 512                           
+           embedding_type: positional                    
+                    epoch: 200                           	[default: latest]
+                     eval: False                         
+        flip_equivariance: False                         
+                  gpu_ids: 0                             
+                init_gain: 0.02                          
+                init_type: xavier                        
+                 input_nc: 1                             	[default: 3]
+                  isTrain: False                         	[default: None]
+               lambda_GAN: 1.0                           
+               lambda_NCE: 1.0                           
+                lambda_SB: 0.1                           
+                     lmda: 0.1                           
+                load_size: 256                           
+         max_dataset_size: inf                           
+                     mode: sb                            
+                    model: sb                            
+               n_layers_D: 3                             
+                    n_mlp: 3                             
+                     name: moving-mnist                  	[default: experiment_name]
+                    nce_T: 0.07                          
+                  nce_idt: True                          
+nce_includes_all_negatives_from_minibatch: False                         
+               nce_layers: 0,4,8,12,16                   
+                      ndf: 64                            
+                     netD: basic_cond                    
+                     netE: basic_cond                    
+                     netF: mlp_sample                    
+                  netF_nc: 256                           
+                     netG: resnet_9blocks_cond           
+                      ngf: 64                            
+             no_antialias: False                         
+          no_antialias_up: False                         
+               no_dropout: True                          
+                  no_flip: False                         
+                    normD: instance                      
+                    normG: instance                      
+       num_frames_per_seq: 20                            
+              num_patches: 256                           
+                 num_test: 1000                          	[default: 50]
+              num_threads: 4                             
+            num_timesteps: 5                             
+                output_nc: 1                             	[default: 3]
+                    phase: val                           	[default: test]
+                pool_size: 0                             
+               preprocess: resize_and_crop               
+         random_scale_max: 3.0                           
+              results_dir: ./results                     	[default: ./results/]
+           serial_batches: False                         
+                      std: 0.25                          
+                style_dim: 512                           
+stylegan2_G_num_downsampling: 1                             
+                   suffix:                               
+                      tau: 0.01                          
+              train_ratio: 0.7                           
+         use_random_frame: False                         
+                val_ratio: 0.1                           
+                  verbose: False                         
+----------------- End -------------------

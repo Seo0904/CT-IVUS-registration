@@ -1,0 +1,1145 @@
+======================================
+Moving MNIST Paired UNSB Training
+======================================
+Domain A: /workspace/data/org_data/moving_mnist/mnist_test_seq.npy
+Domain B: /workspace/data/preprocessed/bspline_transformed/transformed_aligned.npy
+Experiment: moving_mnist_seg_paired_sb
+Date: 20260310_010215
+Results will be saved to: /workspace/data/experiment_result/WP-UNSB/moving-mnist/20260310_010215
+GPU: 0
+======================================
+usage: train.py [-h] [--dataroot DATAROOT] [--name NAME]
+                [--easy_label EASY_LABEL] [--gpu_ids GPU_IDS]
+                [--checkpoints_dir CHECKPOINTS_DIR] [--model MODEL]
+                [--input_nc INPUT_NC] [--output_nc OUTPUT_NC] [--ngf NGF]
+                [--ndf NDF] [--num_timesteps NUM_TIMESTEPS]
+                [--embedding_dim EMBEDDING_DIM]
+                [--netD {basic,n_layers,pixel,patch,tilestylegan2,stylegan2}]
+                [--netE {basic,n_layers,pixel,patch,tilestylegan2,stylegan2,patchstylegan2}]
+                [--netG {resnet_9blocks,resnet_6blocks,unet_256,unet_128,stylegan2,smallstylegan2,resnet_cat}]
+                [--embedding_type {fourier,positional}]
+                [--n_layers_D N_LAYERS_D] [--style_dim STYLE_DIM]
+                [--n_mlp N_MLP] [--normG {instance,batch,none}]
+                [--normD {instance,batch,none}]
+                [--init_type {normal,xavier,kaiming,orthogonal}]
+                [--init_gain INIT_GAIN] [--no_dropout [NO_DROPOUT]]
+                [--std STD] [--tau TAU] [--no_antialias] [--no_antialias_up]
+                [--dataset_mode DATASET_MODE] [--direction DIRECTION]
+                [--serial_batches] [--num_threads NUM_THREADS]
+                [--batch_size BATCH_SIZE] [--load_size LOAD_SIZE]
+                [--crop_size CROP_SIZE] [--max_dataset_size MAX_DATASET_SIZE]
+                [--preprocess PREPROCESS] [--no_flip]
+                [--display_winsize DISPLAY_WINSIZE]
+                [--random_scale_max RANDOM_SCALE_MAX] [--epoch EPOCH]
+                [--verbose] [--suffix SUFFIX]
+                [--stylegan2_G_num_downsampling STYLEGAN2_G_NUM_DOWNSAMPLING]
+                [--display_freq DISPLAY_FREQ] [--display_ncols DISPLAY_NCOLS]
+                [--display_id DISPLAY_ID] [--display_server DISPLAY_SERVER]
+                [--display_env DISPLAY_ENV] [--display_port DISPLAY_PORT]
+                [--update_html_freq UPDATE_HTML_FREQ]
+                [--print_freq PRINT_FREQ] [--no_html]
+                [--save_latest_freq SAVE_LATEST_FREQ]
+                [--save_epoch_freq SAVE_EPOCH_FREQ]
+                [--evaluation_freq EVALUATION_FREQ]
+                [--val_epoch_freq VAL_EPOCH_FREQ]
+                [--num_val_samples NUM_VAL_SAMPLES] [--save_by_iter]
+                [--continue_train] [--epoch_count EPOCH_COUNT] [--phase PHASE]
+                [--pretrained_name PRETRAINED_NAME] [--n_epochs N_EPOCHS]
+                [--n_epochs_decay N_EPOCHS_DECAY] [--beta1 BETA1]
+                [--beta2 BETA2] [--lr LR] [--gan_mode GAN_MODE]
+                [--pool_size POOL_SIZE] [--lr_policy LR_POLICY]
+                [--lr_decay_iters LR_DECAY_ITERS] [--use_ema]
+                [--ema_decay EMA_DECAY]
+                [--mode {,F,a,s,t,C,U,T,,, ,f,a,s,t,c,u,t,,, ,s,b,}]
+                [--lambda_GAN LAMBDA_GAN] [--lambda_NCE LAMBDA_NCE]
+                [--lambda_SB LAMBDA_SB] [--nce_idt [NCE_IDT]]
+                [--nce_layers NCE_LAYERS]
+                [--nce_includes_all_negatives_from_minibatch [NCE_INCLUDES_ALL_NEGATIVES_FROM_MINIBATCH]]
+                [--netF {sample,reshape,mlp_sample}] [--netF_nc NETF_NC]
+                [--nce_T NCE_T] [--lmda LMDA] [--num_patches NUM_PATCHES]
+                [--flip_equivariance [FLIP_EQUIVARIANCE]]
+                [--dataroot_B DATAROOT_B] [--data_file_A DATA_FILE_A]
+                [--data_file_B DATA_FILE_B]
+                [--num_frames_per_seq NUM_FRAMES_PER_SEQ]
+                [--train_ratio TRAIN_RATIO] [--val_ratio VAL_RATIO]
+train.py: error: unrecognized arguments: --lambda_GAN_seq 1.0 --seq_len 20
+>>> sys.argv = ['train.py', '--dataroot', '/workspace/data/org_data/moving_mnist', '--dataroot_B', '/workspace/data/preprocessed/bspline_transformed', '--data_file_A', 'mnist_test_seq.npy', '--data_file_B', 'transformed_aligned.npy', '--name', 'moving_mnist_seg_paired_sb', '--model', 'wpsb', '--mode', 'sb', '--dataset_mode', 'moving_mnist_paired', '--input_nc', '1', '--output_nc', '1', '--ngf', '64', '--ndf', '64', '--load_size', '64', '--crop_size', '64', '--batch_size', '8', '--num_timesteps', '5', '--lambda_GAN', '1.0', '--lambda_GAN_seq', '1.0', '--lambda_SB', '1.0', '--lambda_NCE', '1.0', '--seq_len', '20', '--n_epochs', '200', '--n_epochs_decay', '200', '--lr', '0.00001', '--save_epoch_freq', '10', '--checkpoints_dir', '/workspace/data/experiment_result/WP-UNSB/moving-mnist/20260310_010215', '--gpu_ids', '0', '--preprocess', 'none', '--no_flip', '--use_ema', '--ema_decay', '0.999']
+>>> opt.model = sb
+>>> model_filename = models.sb_model
+>>> Checking class: __name__
+>>> Checking class: __doc__
+>>> Checking class: __package__
+>>> Checking class: __loader__
+>>> Checking class: __spec__
+>>> Checking class: __file__
+>>> Checking class: __cached__
+>>> Checking class: __builtins__
+>>> Checking class: np
+>>> Checking class: torch
+>>> Checking class: BaseModel
+>>> Checking class: networks
+>>> Checking class: PatchNCELoss
+>>> Checking class: util
+>>> Checking class: SBModel
+>>> model_option_setter = <function SBModel.modify_commandline_options at 0x75fabea789d0>
+======================================
+Training completed!
+Results saved to: /workspace/data/experiment_result/WP-UNSB/moving-mnist/20260310_010215
+======================================
+======================================
+Moving MNIST Paired UNSB Training
+======================================
+Domain A: /workspace/data/org_data/moving_mnist/mnist_test_seq.npy
+Domain B: /workspace/data/preprocessed/bspline_transformed/transformed_aligned.npy
+Experiment: moving_mnist_seg_paired_sb
+Date: 20260310_010259
+Results will be saved to: /workspace/data/experiment_result/WP-UNSB/moving-mnist/20260310_010259
+GPU: 0
+======================================
+SCRIPT_DIR=/workspace/WP-UNSB
+PWD=/workspace/WP-UNSB
+train.py path=/workspace/WP-UNSB/train.py
+usage: train.py [-h] [--dataroot DATAROOT] [--name NAME]
+                [--easy_label EASY_LABEL] [--gpu_ids GPU_IDS]
+                [--checkpoints_dir CHECKPOINTS_DIR] [--model MODEL]
+                [--input_nc INPUT_NC] [--output_nc OUTPUT_NC] [--ngf NGF]
+                [--ndf NDF] [--num_timesteps NUM_TIMESTEPS]
+                [--embedding_dim EMBEDDING_DIM]
+                [--netD {basic,n_layers,pixel,patch,tilestylegan2,stylegan2}]
+                [--netE {basic,n_layers,pixel,patch,tilestylegan2,stylegan2,patchstylegan2}]
+                [--netG {resnet_9blocks,resnet_6blocks,unet_256,unet_128,stylegan2,smallstylegan2,resnet_cat}]
+                [--embedding_type {fourier,positional}]
+                [--n_layers_D N_LAYERS_D] [--style_dim STYLE_DIM]
+                [--n_mlp N_MLP] [--normG {instance,batch,none}]
+                [--normD {instance,batch,none}]
+                [--init_type {normal,xavier,kaiming,orthogonal}]
+                [--init_gain INIT_GAIN] [--no_dropout [NO_DROPOUT]]
+                [--std STD] [--tau TAU] [--no_antialias] [--no_antialias_up]
+                [--dataset_mode DATASET_MODE] [--direction DIRECTION]
+                [--serial_batches] [--num_threads NUM_THREADS]
+                [--batch_size BATCH_SIZE] [--load_size LOAD_SIZE]
+                [--crop_size CROP_SIZE] [--max_dataset_size MAX_DATASET_SIZE]
+                [--preprocess PREPROCESS] [--no_flip]
+                [--display_winsize DISPLAY_WINSIZE]
+                [--random_scale_max RANDOM_SCALE_MAX] [--epoch EPOCH]
+                [--verbose] [--suffix SUFFIX]
+                [--stylegan2_G_num_downsampling STYLEGAN2_G_NUM_DOWNSAMPLING]
+                [--display_freq DISPLAY_FREQ] [--display_ncols DISPLAY_NCOLS]
+                [--display_id DISPLAY_ID] [--display_server DISPLAY_SERVER]
+                [--display_env DISPLAY_ENV] [--display_port DISPLAY_PORT]
+                [--update_html_freq UPDATE_HTML_FREQ]
+                [--print_freq PRINT_FREQ] [--no_html]
+                [--save_latest_freq SAVE_LATEST_FREQ]
+                [--save_epoch_freq SAVE_EPOCH_FREQ]
+                [--evaluation_freq EVALUATION_FREQ]
+                [--val_epoch_freq VAL_EPOCH_FREQ]
+                [--num_val_samples NUM_VAL_SAMPLES] [--save_by_iter]
+                [--continue_train] [--epoch_count EPOCH_COUNT] [--phase PHASE]
+                [--pretrained_name PRETRAINED_NAME] [--n_epochs N_EPOCHS]
+                [--n_epochs_decay N_EPOCHS_DECAY] [--beta1 BETA1]
+                [--beta2 BETA2] [--lr LR] [--gan_mode GAN_MODE]
+                [--pool_size POOL_SIZE] [--lr_policy LR_POLICY]
+                [--lr_decay_iters LR_DECAY_ITERS] [--use_ema]
+                [--ema_decay EMA_DECAY]
+                [--mode {,F,a,s,t,C,U,T,,, ,f,a,s,t,c,u,t,,, ,s,b,}]
+                [--lambda_GAN LAMBDA_GAN] [--lambda_NCE LAMBDA_NCE]
+                [--lambda_SB LAMBDA_SB] [--nce_idt [NCE_IDT]]
+                [--nce_layers NCE_LAYERS]
+                [--nce_includes_all_negatives_from_minibatch [NCE_INCLUDES_ALL_NEGATIVES_FROM_MINIBATCH]]
+                [--netF {sample,reshape,mlp_sample}] [--netF_nc NETF_NC]
+                [--nce_T NCE_T] [--lmda LMDA] [--num_patches NUM_PATCHES]
+                [--flip_equivariance [FLIP_EQUIVARIANCE]]
+                [--dataroot_B DATAROOT_B] [--data_file_A DATA_FILE_A]
+                [--data_file_B DATA_FILE_B]
+                [--num_frames_per_seq NUM_FRAMES_PER_SEQ]
+                [--train_ratio TRAIN_RATIO] [--val_ratio VAL_RATIO]
+train.py: error: unrecognized arguments: --lambda_GAN_seq 1.0 --seq_len 20
+>>> sys.argv = ['train.py', '--dataroot', '/workspace/data/org_data/moving_mnist', '--dataroot_B', '/workspace/data/preprocessed/bspline_transformed', '--data_file_A', 'mnist_test_seq.npy', '--data_file_B', 'transformed_aligned.npy', '--name', 'moving_mnist_seg_paired_sb', '--model', 'wpsb', '--mode', 'sb', '--dataset_mode', 'moving_mnist_paired', '--input_nc', '1', '--output_nc', '1', '--ngf', '64', '--ndf', '64', '--load_size', '64', '--crop_size', '64', '--batch_size', '8', '--num_timesteps', '5', '--lambda_GAN', '1.0', '--lambda_GAN_seq', '1.0', '--lambda_SB', '1.0', '--lambda_NCE', '1.0', '--seq_len', '20', '--n_epochs', '200', '--n_epochs_decay', '200', '--lr', '0.00001', '--save_epoch_freq', '10', '--checkpoints_dir', '/workspace/data/experiment_result/WP-UNSB/moving-mnist/20260310_010259', '--gpu_ids', '0', '--preprocess', 'none', '--no_flip', '--use_ema', '--ema_decay', '0.999']
+>>> opt.model = sb
+>>> model_filename = models.sb_model
+>>> Checking class: __name__
+>>> Checking class: __doc__
+>>> Checking class: __package__
+>>> Checking class: __loader__
+>>> Checking class: __spec__
+>>> Checking class: __file__
+>>> Checking class: __cached__
+>>> Checking class: __builtins__
+>>> Checking class: np
+>>> Checking class: torch
+>>> Checking class: BaseModel
+>>> Checking class: networks
+>>> Checking class: PatchNCELoss
+>>> Checking class: util
+>>> Checking class: SBModel
+>>> model_option_setter = <function SBModel.modify_commandline_options at 0x70d9c16b9a60>
+======================================
+Training completed!
+Results saved to: /workspace/data/experiment_result/WP-UNSB/moving-mnist/20260310_010259
+======================================
+[HT] source dir: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT
+[HT] output root: /workspace/data/preprocessed/IVUS_tiff/HT
+Processing patient: HT-001
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-001/IVUS or OCT files/Run1/PDRPL8LV
+      shape: (988, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 988 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-001/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-001/IVUS or OCT files/Run2/PD6QWRYR
+      shape: (996, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 996 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-001/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-001/IVUS or OCT files/Run3/PDNLOC3U
+      shape: (996, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 996 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-001/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-001/IVUS or OCT files/Run4/PDL9KXST
+      shape: (969, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 969 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-001/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-001/IVUS or OCT files/Run5/PDW1FKIR
+      shape: (881, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 881 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-001/Run5
+Processing patient: HT-002
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-002/IVUS or OCT files/Run1/PD6SNSSS
+      shape: (596, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 596 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-002/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-002/IVUS or OCT files/Run2/PDGHDE3T
+      shape: (435, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 435 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-002/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-002/IVUS or OCT files/Run3/PD5YMMLW
+      shape: (392, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 392 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-002/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-002/IVUS or OCT files/Run4/PDKPFSMF
+      shape: (444, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 444 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-002/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-002/IVUS or OCT files/Run5/PDYJZVCH
+      shape: (292, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 292 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-002/Run5
+Processing patient: HT-003
+  Series file: 00000001
+    shape: (1931, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1931 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-003/00000001
+  Series file: 00000002
+    shape: (2066, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 2066 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-003/00000002
+  Series file: 00000003
+    shape: (1679, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1679 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-003/00000003
+  Series file: 00000004
+    shape: (1183, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1183 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-003/00000004
+  Series file: 00000005
+    shape: (1498, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1498 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-003/00000005
+  Series file: 00000006
+    shape: (2021, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 2021 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-003/00000006
+  Series file: 00000007
+    shape: (1818, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1818 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-003/00000007
+Processing patient: HT-004
+  Series file: 00000001
+    shape: (2556, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 2556 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-004/00000001
+  Series file: 00000002
+    shape: (4023, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 4023 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-004/00000002
+Processing patient: HT-005
+  Series file: 00000001
+    shape: (2173, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 2173 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-005/00000001
+  Series file: 00000002
+    shape: (1669, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1669 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-005/00000002
+  Series file: 00000003
+    shape: (1795, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1795 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-005/00000003
+  Series file: 00000004
+    shape: (819, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 819 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-005/00000004
+  Series file: 00000005
+    shape: (1062, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1062 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-005/00000005
+  Series file: 00000006
+    shape: (971, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 971 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-005/00000006
+Processing patient: HT-006
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-006/IVUS or OCT files/Run1/PDGL6KSK
+      shape: (522, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 522 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-006/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-006/IVUS or OCT files/Run2/PDIUPA53
+      shape: (1906, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1906 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-006/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-006/IVUS or OCT files/Run3/PD41CMZW
+      shape: (1299, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1299 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-006/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-006/IVUS or OCT files/Run4/PDNJWU5P
+      shape: (788, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 788 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-006/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-006/IVUS or OCT files/Run5/PDTX45CZ
+      shape: (1210, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1210 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-006/Run5
+Processing patient: HT-007
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-007/IVUS or OCT files/Run1/PDPEPAQS
+      shape: (722, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 722 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-007/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-007/IVUS or OCT files/Run2/PDUMCJUB
+      shape: (295, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 295 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-007/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-007/IVUS or OCT files/Run3/PDB776LQ
+      shape: (575, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 575 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-007/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-007/IVUS or OCT files/Run4/PDCOO1UH
+      shape: (512, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 512 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-007/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-007/IVUS or OCT files/Run5/PDQNAXDV
+      shape: (656, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 656 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-007/Run5
+Processing patient: HT-008
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-008/IVUS or OCT files/Run1/PDTA8TV7
+      shape: (678, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 678 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-008/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-008/IVUS or OCT files/Run2/PDOBXVA8
+      shape: (33, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 33 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-008/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-008/IVUS or OCT files/Run3/PDCQG593
+      shape: (540, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 540 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-008/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-008/IVUS or OCT files/Run4/PDEGH7F6
+      shape: (504, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 504 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-008/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-008/IVUS or OCT files/Run5/PD2UKSH7
+      shape: (1451, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1451 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-008/Run5
+  Run dir: Run6
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-008/IVUS or OCT files/Run6/PD55RP4F
+      shape: (1122, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1122 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-008/Run6
+  Run dir: Run7
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-008/IVUS or OCT files/Run7/PDT6K3EH
+      shape: (1682, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1682 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-008/Run7
+Processing patient: HT-009
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-009/IVUS or OCT files/Run1/PDHE3M66
+      shape: (316, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 316 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-009/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-009/IVUS or OCT files/Run2/PDG7SHXF
+      shape: (499, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 499 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-009/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-009/IVUS or OCT files/Run3/PDX53TSG
+      shape: (471, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 471 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-009/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-009/IVUS or OCT files/Run4/PDH3ZA5W
+      shape: (420, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 420 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-009/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-009/IVUS or OCT files/Run5/PDX29AXB
+      shape: (441, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 441 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-009/Run5
+Processing patient: HT-010
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-010/IVUS or OCT files/Run1/PD7ZVGIH
+      shape: (627, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 627 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-010/Run1
+  Run dir: Run10
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-010/IVUS or OCT files/Run10/PDZFENH4
+      shape: (563, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 563 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-010/Run10
+  Run dir: Run11
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-010/IVUS or OCT files/Run11/PD6MI87R
+      shape: (461, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 461 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-010/Run11
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-010/IVUS or OCT files/Run2/PD3ERCIX
+      shape: (625, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 625 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-010/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-010/IVUS or OCT files/Run3/PD6EPNBU
+      shape: (489, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 489 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-010/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-010/IVUS or OCT files/Run4/PD73R1WJ
+      shape: (325, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 325 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-010/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-010/IVUS or OCT files/Run5/PDZ5AJP4
+      shape: (417, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 417 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-010/Run5
+  Run dir: Run6
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-010/IVUS or OCT files/Run6/PD1VRYPK
+      shape: (771, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 771 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-010/Run6
+  Run dir: Run7
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-010/IVUS or OCT files/Run7/PDQQ7C92
+      shape: (531, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 531 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-010/Run7
+  Run dir: Run8
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-010/IVUS or OCT files/Run8/PDAFQEW5
+      shape: (97, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 97 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-010/Run8
+  Run dir: Run9
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-010/IVUS or OCT files/Run9/PDLFTU9M
+      shape: (237, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 237 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-010/Run9
+Processing patient: HT-011
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-011/IVUS or OCT files/Run1/PDBCPQJ1
+      shape: (990, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 990 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-011/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-011/IVUS or OCT files/Run2/PDY1KEZZ
+      shape: (302, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 302 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-011/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-011/IVUS or OCT files/Run3/PDSAAE9I
+      shape: (335, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 335 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-011/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-011/IVUS or OCT files/Run4/PDVK5SKZ
+      shape: (41, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 41 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-011/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-011/IVUS or OCT files/Run5/PD2UJZVJ
+      shape: (715, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 715 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-011/Run5
+  Run dir: Run6
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-011/IVUS or OCT files/Run6/PDU9KYWF
+      shape: (765, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 765 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-011/Run6
+  Run dir: Run7
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-011/IVUS or OCT files/Run7/PDIQB2PO
+      shape: (454, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 454 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-011/Run7
+  Run dir: Run8
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-011/IVUS or OCT files/Run8/PDFX6I3A
+      shape: (793, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 793 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-011/Run8
+  Run dir: Run9
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-011/IVUS or OCT files/Run9/PDIZC444
+      shape: (456, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 456 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-011/Run9
+Processing patient: HT-012
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-012/IVUS or OCT files/Run1/PDCR1LCJ
+      shape: (441, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 441 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-012/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-012/IVUS or OCT files/Run2/PDVXMA1E
+      shape: (483, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 483 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-012/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-012/IVUS or OCT files/Run3/PDYW5A8F
+      shape: (522, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 522 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-012/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-012/IVUS or OCT files/Run4/PD1DIX33
+      shape: (605, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 605 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-012/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-012/IVUS or OCT files/Run5/PDA9T7E4
+      shape: (557, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 557 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-012/Run5
+  Run dir: Run6
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-012/IVUS or OCT files/Run6/PDB2A7MA
+      shape: (521, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 521 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-012/Run6
+Processing patient: HT-013
+  Series file: 00000001
+    shape: (1787, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1787 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-013/00000001
+  Series file: 00000002
+    shape: (3573, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 3573 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-013/00000002
+  Series file: 00000003
+    shape: (657, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 657 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-013/00000003
+  Series file: 00000004
+    shape: (3218, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 3218 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-013/00000004
+  Series file: 00000005
+    shape: (3227, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 3227 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-013/00000005
+  Series file: 00000006
+    shape: (3186, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 3186 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-013/00000006
+  Series file: 00000007
+    shape: (1183, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1183 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-013/00000007
+  Series file: 00000008
+    shape: (1624, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1624 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-013/00000008
+Processing patient: HT-014
+  Run dir: IMG00015Analysis20260318194420
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-014/IVUS or OCT files/IMG00015Analysis20260318194420/Analysis.XML
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-014/IVUS or OCT files/IMG00015Analysis20260318194420/Analysis.XML: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-014/IVUS or OCT files/IMG00015Analysis20260318194420/MeasurementLabels.xml
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-014/IVUS or OCT files/IMG00015Analysis20260318194420/MeasurementLabels.xml: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-014/IVUS or OCT files/IMG00015Analysis20260318194420/dataIVUS.zip
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-014/IVUS or OCT files/IMG00015Analysis20260318194420/dataIVUS.zip: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+Processing patient: HT-015
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-015/IVUS or OCT files/Run1/PD4DKQR6
+      shape: (551, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 551 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-015/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-015/IVUS or OCT files/Run2/PDQ7ZP7P
+      shape: (842, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 842 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-015/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-015/IVUS or OCT files/Run3/PDCYVJNB
+      shape: (324, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 324 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-015/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-015/IVUS or OCT files/Run4/PDPABAUB
+      shape: (543, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 543 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-015/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-015/IVUS or OCT files/Run5/PDSVD61S
+      shape: (312, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 312 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-015/Run5
+  Run dir: Run6
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-015/IVUS or OCT files/Run6/PD8A2JNO
+      shape: (580, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 580 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-015/Run6
+  Run dir: Run7
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-015/IVUS or OCT files/Run7/PDOA36DV
+      shape: (1564, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1564 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-015/Run7
+  Run dir: Run8
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-015/IVUS or OCT files/Run8/PD7TLU38
+      shape: (391, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 391 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-015/Run8
+  Run dir: Run9
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-015/IVUS or OCT files/Run9/PDAUHYAG
+      shape: (327, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 327 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-015/Run9
+Processing patient: HT-016
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-016/IVUS or OCT files/Run1/PDVNNV91
+      shape: (847, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 847 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-016/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-016/IVUS or OCT files/Run2/PDUBG9XZ
+      shape: (837, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 837 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-016/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-016/IVUS or OCT files/Run3/PDIM8V4X
+      shape: (690, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 690 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-016/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-016/IVUS or OCT files/Run4/PDU1DUSB
+      shape: (829, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 829 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-016/Run4
+Processing patient: HT-017
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-017/IVUS or OCT files/Run1/PDREWTSN
+      shape: (192, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 192 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-017/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-017/IVUS or OCT files/Run2/PD3LIRI4
+      shape: (305, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 305 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-017/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-017/IVUS or OCT files/Run3/PDDLQO84
+      shape: (810, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 810 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-017/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-017/IVUS or OCT files/Run4/PD2F6CW8
+      shape: (841, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 841 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-017/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-017/IVUS or OCT files/Run5/PD5C5RXJ
+      shape: (892, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 892 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-017/Run5
+  Run dir: Run6
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-017/IVUS or OCT files/Run6/PDGEQRUD
+      shape: (463, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 463 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-017/Run6
+  Run dir: Run7
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-017/IVUS or OCT files/Run7/PD2IHNGC
+      shape: (454, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 454 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-017/Run7
+  Run dir: Run8
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-017/IVUS or OCT files/Run8/PDQEQ2DT
+      shape: (464, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 464 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-017/Run8
+Processing patient: HT-018
+  Series file: 00000001
+    shape: (616, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 616 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-018/00000001
+  Series file: 00000002
+    shape: (1917, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1917 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-018/00000002
+  Series file: 00000003
+    shape: (1256, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1256 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-018/00000003
+  Series file: 00000004
+    shape: (1395, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1395 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-018/00000004
+  Series file: 00000005
+    shape: (1373, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1373 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-018/00000005
+  Series file: 00000006
+    shape: (1458, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1458 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-018/00000006
+  Series file: 00000007
+    shape: (1561, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1561 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-018/00000007
+Processing patient: HT-019
+  Series file: IMG0001
+    shape: (375, 704, 704), dtype: uint8, min: 0, max: 255
+  Saved 375 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-019/IMG0001
+  Series file: IMG0002
+    shape: (375, 704, 704), dtype: uint8, min: 0, max: 255
+  Saved 375 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-019/IMG0002
+  Series file: IMG0003
+    shape: (375, 704, 704), dtype: uint8, min: 0, max: 255
+  Saved 375 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-019/IMG0003
+  Series file: IMG0004
+    shape: (375, 704, 704), dtype: uint8, min: 0, max: 255
+  Saved 375 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-019/IMG0004
+  Series file: IMG0005
+    shape: (375, 704, 704), dtype: uint8, min: 0, max: 255
+  Saved 375 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-019/IMG0005
+  Series file: IMG0006
+    shape: (375, 704, 704), dtype: uint8, min: 0, max: 255
+  Saved 375 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-019/IMG0006
+Processing patient: HT-020
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-020/IVUS or OCT files/Run1/PDTK7MJY
+      shape: (742, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 742 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-020/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-020/IVUS or OCT files/Run2/PD1CW8ZY
+      shape: (540, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 540 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-020/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-020/IVUS or OCT files/Run3/PD6V4EP2
+      shape: (572, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 572 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-020/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-020/IVUS or OCT files/Run4/PDWXZ8PF
+      shape: (475, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 475 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-020/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-020/IVUS or OCT files/Run5/PDBMQD7O
+      shape: (532, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 532 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-020/Run5
+  Run dir: Run6
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-020/IVUS or OCT files/Run6/PDW2YGP7
+      shape: (317, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 317 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-020/Run6
+  Run dir: Run7
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-020/IVUS or OCT files/Run7/PDUK3GLF
+      shape: (719, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 719 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-020/Run7
+Processing patient: HT-021
+  Run dir: IMG00032Analysis20260310215150
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00032Analysis20260310215150/Analysis.XML
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00032Analysis20260310215150/Analysis.XML: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00032Analysis20260310215150/MeasurementLabels.xml
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00032Analysis20260310215150/MeasurementLabels.xml: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00032Analysis20260310215150/dataIVUS.zip
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00032Analysis20260310215150/dataIVUS.zip: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+  Run dir: IMG00032Analysis20260318195211
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00032Analysis20260318195211/Analysis.XML
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00032Analysis20260318195211/Analysis.XML: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00032Analysis20260318195211/MeasurementLabels.xml
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00032Analysis20260318195211/MeasurementLabels.xml: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00032Analysis20260318195211/dataIVUS-backup.zip
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00032Analysis20260318195211/dataIVUS-backup.zip: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00032Analysis20260318195211/dataIVUS.zip
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00032Analysis20260318195211/dataIVUS.zip: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+  Run dir: IMG00044Analysis20260310215230
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00044Analysis20260310215230/Analysis.XML
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00044Analysis20260310215230/Analysis.XML: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00044Analysis20260310215230/MeasurementLabels.xml
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00044Analysis20260310215230/MeasurementLabels.xml: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00044Analysis20260310215230/dataIVUS.zip
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-021/IVUS or OCT files/IMG00044Analysis20260310215230/dataIVUS.zip: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+Processing patient: HT-022
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-022/IVUS or OCT files/Run1/PDG4ER3H
+      shape: (333, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 333 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-022/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-022/IVUS or OCT files/Run2/PDOIU1YL
+      shape: (601, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 601 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-022/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-022/IVUS or OCT files/Run3/PDLA18HZ
+      shape: (497, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 497 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-022/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-022/IVUS or OCT files/Run4/PDBQIFXV
+      shape: (340, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 340 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-022/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-022/IVUS or OCT files/Run5/PDOAGTBW
+      shape: (650, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 650 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-022/Run5
+  Run dir: Run6
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-022/IVUS or OCT files/Run6/PDS6PKAE
+      shape: (742, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 742 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-022/Run6
+  Run dir: Run7
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-022/IVUS or OCT files/Run7/PD9JBAH9
+      shape: (732, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 732 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-022/Run7
+  Run dir: Run8
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-022/IVUS or OCT files/Run8/PDCJU3TW
+      shape: (617, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 617 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-022/Run8
+Processing patient: HT-023
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-023/IVUS or OCT files/Run1/PDFR8L7A
+      shape: (502, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 502 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-023/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-023/IVUS or OCT files/Run2/PD666PV8
+      shape: (815, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 815 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-023/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-023/IVUS or OCT files/Run3/PDKY3SFQ
+      shape: (702, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 702 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-023/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-023/IVUS or OCT files/Run4/PD6APB1Z
+      shape: (695, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 695 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-023/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-023/IVUS or OCT files/Run5/PDP5APDU
+      shape: (1002, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1002 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-023/Run5
+  Run dir: Run6
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-023/IVUS or OCT files/Run6/PDMLB423
+      shape: (288, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 288 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-023/Run6
+  Run dir: Run7
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-023/IVUS or OCT files/Run7/PD4DCUGE
+      shape: (964, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 964 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-023/Run7
+  Run dir: Run8
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-023/IVUS or OCT files/Run8/PDQXBIK5
+      shape: (1003, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1003 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-023/Run8
+  Run dir: Run9
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-023/IVUS or OCT files/Run9/PDP97Z6A
+      shape: (412, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 412 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-023/Run9
+Processing patient: HT-024
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-024/IVUS or OCT files/Run1/PDXTPGY9
+      shape: (641, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 641 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-024/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-024/IVUS or OCT files/Run2/PDLRZBQY
+      shape: (623, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 623 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-024/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-024/IVUS or OCT files/Run3/PDA2B4QJ
+      shape: (583, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 583 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-024/Run3
+Processing patient: HT-025
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-025/IVUS or OCT files/Run1/PDEA9FJI
+      shape: (484, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 484 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-025/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-025/IVUS or OCT files/Run2/PDSSKKO3
+      shape: (632, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 632 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-025/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-025/IVUS or OCT files/Run3/PD59OQLF
+      shape: (861, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 861 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-025/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-025/IVUS or OCT files/Run4/PDBMH4EK
+      shape: (830, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 830 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-025/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-025/IVUS or OCT files/Run5/PD1H5Y34
+      shape: (607, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 607 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-025/Run5
+  Run dir: Run6
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-025/IVUS or OCT files/Run6/PDVE34LG
+      shape: (707, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 707 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-025/Run6
+Processing patient: HT-026
+  Run dir: IMG00001Analysis20260310215631
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00001Analysis20260310215631/Analysis.XML
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00001Analysis20260310215631/Analysis.XML: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00001Analysis20260310215631/MeasurementLabels.xml
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00001Analysis20260310215631/MeasurementLabels.xml: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00001Analysis20260310215631/dataIVUS.zip
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00001Analysis20260310215631/dataIVUS.zip: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+  Run dir: IMG00001Analysis20260318195308
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00001Analysis20260318195308/Analysis.XML
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00001Analysis20260318195308/Analysis.XML: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00001Analysis20260318195308/MeasurementLabels.xml
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00001Analysis20260318195308/MeasurementLabels.xml: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00001Analysis20260318195308/dataIVUS-backup.zip
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00001Analysis20260318195308/dataIVUS-backup.zip: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00001Analysis20260318195308/dataIVUS.zip
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00001Analysis20260318195308/dataIVUS.zip: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+  Run dir: IMG00005Analysis20260310215656
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00005Analysis20260310215656/Analysis.XML
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00005Analysis20260310215656/Analysis.XML: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00005Analysis20260310215656/MeasurementLabels.xml
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00005Analysis20260310215656/MeasurementLabels.xml: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00005Analysis20260310215656/dataIVUS.zip
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-026/IVUS or OCT files/IMG00005Analysis20260310215656/dataIVUS.zip: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+Processing patient: HT-027
+  Series file: 00000001
+    shape: (1048, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1048 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-027/00000001
+  Series file: 00000002
+    shape: (1498, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1498 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-027/00000002
+  Series file: 00000003
+    shape: (994, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 994 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-027/00000003
+  Series file: 00000004
+    shape: (878, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 878 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-027/00000004
+  Series file: 00000005
+    shape: (2056, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 2056 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-027/00000005
+  Series file: 00000006
+    shape: (1017, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1017 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-027/00000006
+  Series file: 00000007
+    shape: (1503, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1503 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-027/00000007
+  Series file: 00000008
+    shape: (819, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 819 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-027/00000008
+  Series file: 00000009
+    shape: (877, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 877 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-027/00000009
+Processing patient: HT-028
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-028/IVUS or OCT files/Run1/PD45MENE
+      shape: (709, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 709 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-028/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-028/IVUS or OCT files/Run2/PDIWFFF2
+      shape: (725, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 725 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-028/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-028/IVUS or OCT files/Run3/PDC3DAVJ
+      shape: (779, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 779 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-028/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-028/IVUS or OCT files/Run4/PDL1ATLD
+      shape: (832, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 832 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-028/Run4
+Processing patient: HT-029
+  Series file: 00000001
+    shape: (1579, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1579 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-029/00000001
+  Series file: 00000002
+    shape: (1125, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1125 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-029/00000002
+  Series file: 00000003
+    shape: (1980, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1980 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-029/00000003
+  Series file: 00000004
+    shape: (2840, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 2840 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-029/00000004
+  Series file: 00000005
+    shape: (1746, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1746 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-029/00000005
+  Series file: 00000006
+    shape: (2525, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 2525 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-029/00000006
+  Series file: 00000007
+    shape: (1562, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1562 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-029/00000007
+  Series file: 00000008
+    shape: (3069, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 3069 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-029/00000008
+Processing patient: HT-030
+  Series file: 00000001
+    shape: (2669, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 2669 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-030/00000001
+  Series file: 00000002
+    shape: (2961, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 2961 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-030/00000002
+  Series file: 00000003
+    shape: (1926, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1926 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-030/00000003
+  Series file: 00000004
+    shape: (2029, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 2029 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-030/00000004
+  Series file: 00000005
+    shape: (2209, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 2209 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-030/00000005
+Processing patient: HT-031
+  Series file: IMG00006
+    shape: (315, 600, 600, 3), dtype: uint8, min: 0, max: 255
+  Saved 315 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-031/IMG00006
+  Series file: IMG00007
+    shape: (341, 600, 600, 3), dtype: uint8, min: 0, max: 255
+  Saved 341 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-031/IMG00007
+  Series file: IMG00008
+    shape: (364, 600, 600, 3), dtype: uint8, min: 0, max: 255
+  Saved 364 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-031/IMG00008
+  Series file: IMG00009
+    shape: (348, 600, 600, 3), dtype: uint8, min: 0, max: 255
+  Saved 348 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-031/IMG00009
+Processing patient: HT-032
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-032/IVUS or OCT files/Run1/PDHGWINY
+      shape: (774, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 774 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-032/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-032/IVUS or OCT files/Run2/PDP69P9U
+      shape: (781, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 781 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-032/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-032/IVUS or OCT files/Run3/PDDINZ6U
+      shape: (708, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 708 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-032/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-032/IVUS or OCT files/Run4/PDAZZV5B
+      shape: (861, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 861 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-032/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-032/IVUS or OCT files/Run5/PD63EOBQ
+      shape: (844, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 844 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-032/Run5
+  Run dir: Run6
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-032/IVUS or OCT files/Run6/PD6WNBKM
+      shape: (734, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 734 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-032/Run6
+Processing patient: HT-033
+  Series file: 00000001
+    shape: (2025, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 2025 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-033/00000001
+  Series file: 00000002
+    shape: (2061, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 2061 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-033/00000002
+  Series file: 00000003
+    shape: (1592, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1592 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-033/00000003
+Processing patient: HT-034
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-034/IVUS or OCT files/Run1/PDOKJ8KE
+      shape: (764, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 764 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-034/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-034/IVUS or OCT files/Run2/PDK13DBL
+      shape: (605, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 605 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-034/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-034/IVUS or OCT files/Run3/PDLNPE4Q
+      shape: (559, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 559 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-034/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-034/IVUS or OCT files/Run4/PDVWNVLO
+      shape: (308, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 308 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-034/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-034/IVUS or OCT files/Run5/PDTWNKGB
+      shape: (591, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 591 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-034/Run5
+Processing patient: HT-035
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-035/IVUS or OCT files/Run1/PDD6ADYI
+      shape: (201, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 201 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-035/Run1
+  Run dir: Run10
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-035/IVUS or OCT files/Run10/PDHUWVXB
+      shape: (341, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 341 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-035/Run10
+  Run dir: Run11
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-035/IVUS or OCT files/Run11/PDH4LO4K
+      shape: (622, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 622 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-035/Run11
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-035/IVUS or OCT files/Run2/PD2PYS8C
+      shape: (207, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 207 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-035/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-035/IVUS or OCT files/Run3/PDCZBNJC
+      shape: (196, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 196 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-035/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-035/IVUS or OCT files/Run4/PDNKPM9E
+      shape: (507, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 507 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-035/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-035/IVUS or OCT files/Run5/PDOS4DMS
+      shape: (353, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 353 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-035/Run5
+  Run dir: Run6
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-035/IVUS or OCT files/Run6/PDG1VAFY
+      shape: (454, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 454 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-035/Run6
+  Run dir: Run7
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-035/IVUS or OCT files/Run7/PDAI6OXH
+      shape: (366, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 366 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-035/Run7
+  Run dir: Run8
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-035/IVUS or OCT files/Run8/PDAFMDPI
+      shape: (51, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 51 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-035/Run8
+  Run dir: Run9
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-035/IVUS or OCT files/Run9/PDH4E47Q
+      shape: (429, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 429 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-035/Run9
+Processing patient: HT-036
+  Run dir: IMG00023Analysis20260318194719
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-036/IVUS or OCT files/IMG00023Analysis20260318194719/Analysis.XML
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-036/IVUS or OCT files/IMG00023Analysis20260318194719/Analysis.XML: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-036/IVUS or OCT files/IMG00023Analysis20260318194719/MeasurementLabels.xml
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-036/IVUS or OCT files/IMG00023Analysis20260318194719/MeasurementLabels.xml: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-036/IVUS or OCT files/IMG00023Analysis20260318194719/dataIVUS.zip
+      Error reading /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-036/IVUS or OCT files/IMG00023Analysis20260318194719/dataIVUS.zip: 'FileMetaDataset' object has no attribute 'TransferSyntaxUID'
+Processing patient: HT-037
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-037/IVUS or OCT files/Run1/PDNJL7GI
+      shape: (857, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 857 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-037/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-037/IVUS or OCT files/Run2/PDSNK6HK
+      shape: (584, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 584 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-037/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-037/IVUS or OCT files/Run3/PDZZPPQB
+      shape: (614, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 614 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-037/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-037/IVUS or OCT files/Run4/PDVT6X1S
+      shape: (757, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 757 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-037/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-037/IVUS or OCT files/Run5/PD9O2KTJ
+      shape: (1407, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1407 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-037/Run5
+  Run dir: Run6
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-037/IVUS or OCT files/Run6/PDAKAXN9
+      shape: (749, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 749 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-037/Run6
+Processing patient: HT-038
+  Run dir: Run1
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-038/IVUS or OCT files/Run1/PDMFD3O7
+      shape: (474, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 474 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-038/Run1
+  Run dir: Run2
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-038/IVUS or OCT files/Run2/PD3EZUBV
+      shape: (537, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 537 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-038/Run2
+  Run dir: Run3
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-038/IVUS or OCT files/Run3/PDE443MS
+      shape: (636, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 636 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-038/Run3
+  Run dir: Run4
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-038/IVUS or OCT files/Run4/PDLYLKB2
+      shape: (518, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 518 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-038/Run4
+  Run dir: Run5
+    Processing DICOM: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-038/IVUS or OCT files/Run5/PDZFTWMD
+      shape: (277, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 277 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-038/Run5
+Processing patient: HT-039
+  Series file: 00000001
+    shape: (409, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 409 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-039/00000001
+  Series file: 00000002
+    shape: (874, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 874 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-039/00000002
+  Series file: 00000003
+    shape: (1058, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1058 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-039/00000003
+  Series file: 00000004
+    shape: (1404, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1404 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-039/00000004
+  Series file: 00000005
+    shape: (4426, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 4426 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-039/00000005
+  Series file: 00000006
+    shape: (108, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 108 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-039/00000006
+  Series file: 00000007
+    shape: (680, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 680 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-039/00000007
+  Series file: 00000008
+    shape: (666, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 666 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-039/00000008
+  Series file: 00000009
+    shape: (963, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 963 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-039/00000009
+  Series file: 00000010
+    shape: (1021, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1021 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-039/00000010
+  Series file: 00000011
+    shape: (1035, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1035 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-039/00000011
+Processing patient: HT-040
+  Series file: 00000001
+    shape: (851, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 851 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-040/00000001
+  Series file: 00000002
+    shape: (985, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 985 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-040/00000002
+  Series file: 00000003
+    shape: (909, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 909 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-040/00000003
+  Series file: 00000004
+    shape: (1179, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1179 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-040/00000004
+  Series file: 00000005
+    shape: (1336, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1336 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-040/00000005
+  Series file: 00000006
+    shape: (1170, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1170 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-040/00000006
+Processing patient: HT-041
+  Series file: 00000001
+    shape: (1278, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1278 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-041/00000001
+  Series file: 00000002
+    shape: (589, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 589 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-041/00000002
+  Series file: 00000003
+    shape: (54, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 54 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-041/00000003
+  Series file: 00000004
+    shape: (1485, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1485 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-041/00000004
+  Series file: 00000005
+    shape: (1566, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1566 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-041/00000005
+  Series file: 00000006
+    shape: (1557, 512, 512), dtype: uint8, min: 0, max: 255
+  Saved 1557 frames under: /workspace/data/preprocessed/IVUS_tiff/HT/HT-041/00000006
+  [SKIP] IVUS or OCT files not found for HT-042: /workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/HT/HT-042/IVUS or OCT files
+
+All images saved under: /workspace/data/preprocessed/IVUS_tiff

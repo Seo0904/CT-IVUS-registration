@@ -1,0 +1,32 @@
+DESKTOP-RNGBF5G
+$RECYCLE.BIN/
+
+# OSやエディタによって自動生成されるファイル
+.DS_Store
+Thumbs.db
+
+# Pythonのキャッシュ
+__pycache__/
+*.pyc
+
+# 環境設定ファイル
+.env
+
+# node_modulesディレクトリ
+node_modules/
+
+# ビルドや出力ファイル
+dist/
+*.log
+
+Ctk
+FileHistory
+
+
+Logs
+wandb
+unsup_video_lstm
+UNSB-main/tmp_fid/
+**/tmp_fid/
+**/assets/
+    
