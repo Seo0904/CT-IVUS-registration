@@ -322,8 +322,7 @@ def scan_target(target: str, ew: ErrorWriter) -> None:
 		if not patient_dir.is_dir() or patient_dir.name.startswith("."):
 			continue
 
-		if target == "HT" and patient_dir.name not in _HT_PATIENTS_TO_SCAN:
-			continue
+		
 
 		ivus_roots = _iter_ivus_roots(target, patient_dir)
 		if not ivus_roots:

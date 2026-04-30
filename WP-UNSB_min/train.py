@@ -232,6 +232,10 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10):
                                     iters=getattr(opt, 'seq_ot_iters', 50),
                                     monotone=getattr(opt, 'seq_ot_monotone', True),
                                     monotone_penalty=getattr(opt, 'seq_ot_monotone_penalty', 50.0),
+                                    P_entropy=getattr(opt, 'seq_ot_p_entropy', True),
+                                    P_entropy_penalty=getattr(opt, 'seq_ot_p_entropy_penalty', 1.0),
+                                    ot_divergence=getattr(opt, 'seq_ot_divergence', False),
+                                    ot_divergence_penalty=getattr(opt, 'seq_ot_divergence_penalty', -0.5),
                                     normalize=(None if getattr(opt, 'seq_ot_normalize', 'mean') == 'none' else getattr(opt, 'seq_ot_normalize', 'mean')),
                                 return_details=True,
                             )
@@ -261,6 +265,10 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10):
                             iters=getattr(opt, 'seq_ot_iters', 50),
                             monotone=getattr(opt, 'seq_ot_monotone', True),
                             monotone_penalty=getattr(opt, 'seq_ot_monotone_penalty', 50.0),
+                            P_entropy=getattr(opt, 'seq_ot_p_entropy', True),
+                            P_entropy_penalty=getattr(opt, 'seq_ot_p_entropy_penalty', 1.0),
+                            ot_divergence=getattr(opt, 'seq_ot_divergence', False),
+                            ot_divergence_penalty=getattr(opt, 'seq_ot_divergence_penalty', -0.5),
                             normalize=(None if getattr(opt, 'seq_ot_normalize', 'mean') == 'none' else getattr(opt, 'seq_ot_normalize', 'mean')),
                             return_details=True,
                         )
@@ -452,7 +460,7 @@ if __name__ == '__main__':
                         if not os.path.isdir(d):
                             continue
                         # Prefer the most informative images
-                        for suffix in ['_P.png', '_M.png', '_U.png', '_real_A.png', '_fake_B.png', '_real_B.png']:
+                        for suffix in ['_P.png', '_M.png', '_P_d.png', '_M_d.png', '_U.png', '_real_A.png', '_fake_B.png', '_real_B.png']:
                             ot_images.extend(sorted(
                                 [os.path.join(d, fn) for fn in os.listdir(d) if fn.endswith(suffix)]
                             ))

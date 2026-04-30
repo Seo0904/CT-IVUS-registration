@@ -24,6 +24,10 @@ def sequence_ot_loss_torch(
     iters: int = 50,
     monotone: bool = True,
     monotone_penalty: float = 50.0,
+    P_entropy: bool = True,
+    P_entropy_penalty: float = 1.0,
+    ot_divergence: bool = False,
+    ot_divergence_penalty: float = -0.5,
     normalize: str = "mean",   # "mean" or "median" or "max" or None
     return_plan: bool = False,
     return_details: bool = False,
@@ -84,9 +88,12 @@ def sequence_ot_loss_torch(
     # 輸送計画 P を取得
     P = ot.sinkhorn(a, b, M, reg=reg, numItermax=iters)
     P = cast(torch.Tensor, P)
+    OT_entropy =  - torch.sum(P * torch.log(P + 1e-8))
+
+
 
     # OT distance term = <P, M>
-    ot_cost = torch.sum(P * M)
+    ot_cost = torch.sum(P * M) - reg * OT_entropy
     if verbose:
         print("M min/max/mean:", M.min().item(), M.max().item(), M.mean().item())
         print("P min/max/mean:", P.min().item(), P.max().item(), P.mean().item())
@@ -103,14 +110,37 @@ def sequence_ot_loss_torch(
         U = torch.sum(P * j_idx, dim=1) / row_mass                                         # (T,)
         mono_loss = torch.relu(U[:-1] - U[1:]).sum()
 
-    reg_cost = monotone_penalty * mono_loss
-    total = ot_cost + reg_cost
+    P_entropy_loss = torch.tensor(0.0, device=fake_seq.device, dtype=fake_seq.dtype)
+    if P_entropy:
+        row_mass = P.sum(dim=1, keepdim=True) + 1e-8
+        Q = P / row_mass
+        P_entropy_loss = -torch.sum(Q * torch.log(Q + 1e-8), dim=1)
+        P_entropy_loss = P_entropy_loss.mean()
+
+    
+    ot_divergence_loss = torch.tensor(0.0, device=fake_seq.device, dtype=fake_seq.dtype)
+    if ot_divergence:
+        M_d = torch.cdist(fake_flat, fake_flat, p=2) ** 2
+        b_d = torch.ones(T, device=fake_seq.device, dtype=fake_seq.dtype) / T
+        P_d = ot.sinkhorn(a, b_d, M_d, reg=reg, numItermax=iters)
+        OT_entropy_d =  - torch.sum(P_d * torch.log(P_d + 1e-8))
+        ot_divergence_loss = torch.sum(P_d * M_d) - reg * OT_entropy_d
+    
+
+        
+    mono_cost = monotone_penalty * mono_loss
+    entorpy_cost = P_entropy_penalty * P_entropy_loss
+    ot_divergence_cost = ot_divergence_penalty * ot_divergence_loss
+
+    total = ot_cost + mono_cost + entorpy_cost + ot_divergence_cost
 
     if verbose:
         print(
             "sequence_ot terms:",
             "distance=", ot_cost.item(),
-            "reg=", reg_cost.item(),
+            "mono=", mono_cost.item(),
+            "entropy=", entorpy_cost.item(),
+            "ot_divergence=", ot_divergence_cost.item(),
             "total=", total.item(),
         )
 
@@ -119,10 +149,18 @@ def sequence_ot_loss_torch(
             "P": P,
             "M": M,
             "U": U,
+            "P_d": P_d if ot_divergence else None,
+            "M_d": M_d if ot_divergence else None,
             "ot_cost": ot_cost,
-            "reg_cost": reg_cost,
+            "mono_cost": mono_cost,
+            "entropy_cost": entorpy_cost,
+            "ot_divergence_cost": ot_divergence_cost,
             "mono_loss": mono_loss,
             "mono_penalty": monotone_penalty,
+            "P_entropy_loss": P_entropy_loss,
+            "P_entropy_penalty": P_entropy_penalty,
+            "ot_divergence_loss": ot_divergence_loss,
+            "ot_divergence_penalty": ot_divergence_penalty,
             "valid_idx": valid_idx,
             "a": a,
             "b": b,
@@ -135,7 +173,9 @@ def sequence_ot_loss_torch(
 
     terms: Dict[str, Any] = {
         "ot_cost": ot_cost,
-        "reg_cost": reg_cost,
+        "mono_cost": mono_cost,
+        "entropy_cost": entorpy_cost,
+        "ot_divergence_cost": ot_divergence_cost,
         "mono_loss": mono_loss,
         "mono_penalty": monotone_penalty,
         "total": total,

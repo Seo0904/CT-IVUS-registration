@@ -136,7 +136,7 @@ if __name__ == "__main__":
 	data = load_moving_mnist(str(data_path))
 
 	trans_grid = 3
-	trans_mrange = 0.15
+	trans_mrange = 0.1
 
 	transformer = MovingMNISTBSplineTransformer(
 		trans_mrange=trans_mrange,
@@ -155,8 +155,8 @@ if __name__ == "__main__":
 
 	transformed_data = transformer.transform_batch(data)
 
-	np.save(output_dir / "transformed_global.npy", transformed_data)
-	print(f"\nSaved transformed data to {output_dir / 'transformed_global.npy'}")
+	np.save(output_dir / "transformed_global_0.1_3.npy", transformed_data)
+	print(f"\nSaved transformed data to {output_dir / 'transformed_global_0.1_3.npy'}")
 
 	for i in range(min(3, num_sequences)):
 		visualize_comparison(

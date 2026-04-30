@@ -62,9 +62,9 @@ def plot_four_rows(
 ):
     row_titles = [
         'Original',
-        'B-spline',
-        'Head-tail-black',
-        'Cut'
+        'B-spline global 0.05',
+        'B-spline global 0.1',
+        'B-spline global 0.15',
     ]
 
     arrays = []
@@ -134,8 +134,8 @@ def plot_four_rows(
 if __name__ == '__main__':
     files = [
         'data/org_data/moving_mnist/mnist_test_seq.npy',
+        'data/preprocessed/bspline_transformed/transformed_global_0.05_3.npy'
+        'data/preprocessed/bspline_transformed/transformed_global_0.1_3.npy',
         'data/preprocessed/bspline_transformed/transformed_global.npy',
-        'data/preprocessed/bspline_transformed/transformed_cut_head_tail_global.npy',
-        'data/preprocessed/bspline_transformed/transformed_cut_global.npy',
     ]
     plot_four_rows(files, seq_idx=1, num_frames=5)

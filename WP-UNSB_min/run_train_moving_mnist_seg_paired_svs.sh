@@ -24,7 +24,7 @@ mkdir -p "${RESULT_DIR}"
 
 # データセットパス（絶対パス）
 DATAROOT="${WORKSPACE_DIR}/data/org_data/moving_mnist"
-DATAROOT_B="${WORKSPACE_DIR}/data/preprocessed/bspline_transformed"
+DATAROOT_B="${WORKSPACE_DIR}/data/org_data/moving_mnist"
 
 # 実験名（保存先の最後のフォルダ名として使用）
 NAME="moving_mnist_seg_paired_sb_wo_GL_w_entropy"
@@ -65,7 +65,7 @@ LAMBDA_SB=1.0
 LAMBDA_NCE=0
 
 # sequence OT (P entropy)
-SEQ_OT_P_ENTROPY=${SEQ_OT_P_ENTROPY:-1}
+SEQ_OT_P_ENTROPY=${SEQ_OT_P_ENTROPY:-0}
 SEQ_OT_P_ENTROPY_PENALTY=${SEQ_OT_P_ENTROPY_PENALTY:-1.0}
 
 # sequence OT (divergence)
@@ -156,7 +156,7 @@ cmd=(python3 train.py
   --dataroot ${DATAROOT}
   --dataroot_B ${DATAROOT_B}
   --data_file_A mnist_test_seq.npy
-  --data_file_B transformed_global.npy
+  --data_file_B mnist_test_seq.npy
   --name ${NAME}
   --model ${MODEL}
   --mode ${MODE}

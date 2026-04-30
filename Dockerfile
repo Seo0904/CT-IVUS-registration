@@ -1,59 +1,42 @@
-FROM nvidia/cuda:11.0.3-devel-ubuntu20.04
+FROM nvidia/cuda:12.1.1-devel-ubuntu22.04
 
 LABEL maintainer="keisuke.kanda@human.ait.kyushu-u.ac.jp"
 
-# Timezone setting
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
+ENV DEBIAN_FRONTEND=noninteractive
+ENV WORK_DIR=/workspace
 
-# 基本ツール
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash curl fish git nano sudo software-properties-common
-
-# Git LFS
-RUN apt-get update && apt-get install -y --no-install-recommends git-lfs && \
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    tzdata \
+    bash curl fish git git-lfs nano sudo \
+    software-properties-common \
+    python3 python3-pip python3-venv python3-dev \
+    libopencv-dev && \
     git lfs install && \
     rm -rf /var/lib/apt/lists/*
 
-# OpenCV
-RUN apt-get update && apt-get install -y --no-install-recommends libopencv-dev
+RUN ln -sf /usr/bin/python3 /usr/bin/python
 
-# Python 3.9 インストール（ppaを使って正しく入れる）
-RUN add-apt-repository ppa:deadsnakes/ppa -y && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends python3.9 python3.9-distutils python3.9-venv
+ARG UID=1000
+ARG USER=hoge
+ARG PASSWORD=hoge
 
-# python3 → python3.9 を指すようにシンボリックリンクを作成
-RUN ln -sf /usr/bin/python3.9 /usr/bin/python3
-
-
-# pip インストール
-RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3
-
-# Add User & Group
-ARG UID
-ARG USER
-ARG PASSWORD
 RUN groupadd -g 1000 ${USER}_group && \
     useradd -m --uid=${UID} --gid=${USER}_group --groups=sudo ${USER} && \
     echo ${USER}:${PASSWORD} | chpasswd && \
-    echo 'root:root' | chpasswd
+    echo 'root:root' | chpasswd && \
+    mkdir ${WORK_DIR} && \
+    chown ${USER}:${USER}_group ${WORK_DIR}
 
 ENV PATH=${PATH}:/home/${USER}/.local/bin
 
-# 作業ディレクトリ
-ENV WORK_DIR=/workspace
-RUN mkdir ${WORK_DIR} && \
-    chown ${USER}:${USER}_group ${WORK_DIR}
 WORKDIR ${WORK_DIR}
-
-# ユーザー切り替え
 USER ${USER}
 
-# Python パッケージのインストール
-COPY requirements.txt /
 COPY requirements.txt /
 
-RUN python3 -m pip install --upgrade pip setuptools wheel && \
+RUN python3 -m pip install --upgrade pip wheel && \
+    python3 -m pip install "setuptools==69.5.1" && \
     python3 -m pip install --no-build-isolation --no-cache-dir visdom==0.2.4 && \
     python3 -m pip install --no-cache-dir -r /requirements.txt

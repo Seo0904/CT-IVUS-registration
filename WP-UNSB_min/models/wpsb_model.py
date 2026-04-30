@@ -42,6 +42,14 @@ class WPSBModel(BaseModel):
                     help='use monotone penalty in sequence OT')
         parser.add_argument('--seq_ot_monotone_penalty', type=float, default=50.0,
                     help='weight for monotone penalty in sequence OT')
+        parser.add_argument('--seq_ot_p_entropy', type=util.str2bool, nargs='?', const=True, default=True,
+                help='use row-wise entropy regularization term for transport plan P in sequence OT')
+        parser.add_argument('--seq_ot_p_entropy_penalty', type=float, default=1.0,
+                help='weight for P entropy regularization in sequence OT')
+        parser.add_argument('--seq_ot_divergence', type=util.str2bool, nargs='?', const=True, default=False,
+            help='use divergence regularization term based on fake-fake transport')
+        parser.add_argument('--seq_ot_divergence_penalty', type=float, default=-0.5,
+            help='weight for divergence regularization in sequence OT')
         parser.add_argument('--seq_ot_normalize', type=str, default='mean',
                     choices=['mean', 'median', 'max', 'none'],
                     help='normalization mode for OT cost matrix')
@@ -95,8 +103,8 @@ class WPSBModel(BaseModel):
         # The training/test scripts will call <BaseModel.get_current_losses>
         self.loss_names = ['SB']
         if self.isTrain and self.opt.sb_mode in ['seq_ot', 'both']:
-            # SB_P: OT distance term (<P, M>), SB_U: monotone regularization term (weighted)
-            self.loss_names += ['SB_P', 'SB_U']
+            # SB_P: OT distance, SB_U: monotone regularization, SB_ENT: entropy regularization, SB_DIV: divergence regularization
+            self.loss_names += ['SB_P', 'SB_U', 'SB_ENT', 'SB_DIV']
         self.visual_names = ['real_A','real_A_noisy', 'fake_B', 'real_B']
         if self.opt.phase == 'test':
             self.visual_names = ['real', 'real_B']
@@ -510,6 +518,8 @@ class WPSBModel(BaseModel):
         self.loss_SB = 0
         self.loss_SB_P = 0.0
         self.loss_SB_U = 0.0
+        self.loss_SB_ENT = 0.0
+        self.loss_SB_DIV = 0.0
         if self.opt.lambda_SB > 0.0:
             #ver1 同様、各シーケンスごとに (T,C,H,W) で OT を計算する
             if self.opt.sb_mode == 'seq_ot':
@@ -597,10 +607,16 @@ class WPSBModel(BaseModel):
         P = details.get('P')
         M = details.get('M')
         U = details.get('U')
+        P_d = details.get('P_d')
+        M_d = details.get('M_d')
         valid_idx = details.get('valid_idx')
         ot_cost = details.get('ot_cost')
-        reg_cost = details.get('reg_cost')
+        mono_cost = details.get('mono_cost')
+        entropy_cost = details.get('entropy_cost')
+        ot_divergence_cost = details.get('ot_divergence_cost')
         mono_loss = details.get('mono_loss')
+        P_entropy_loss = details.get('P_entropy_loss')
+        ot_divergence_loss = details.get('ot_divergence_loss')
         total = details.get('total')
 
         # 追加で保存したいシーケンス（形状は (T, C, H, W) を想定）
@@ -623,10 +639,16 @@ class WPSBModel(BaseModel):
             P=P.detach().cpu().numpy() if P is not None else None,
             M=M.detach().cpu().numpy() if M is not None else None,
             U=U.detach().cpu().numpy() if U is not None else None,
+            P_d=P_d.detach().cpu().numpy() if P_d is not None else None,
+            M_d=M_d.detach().cpu().numpy() if M_d is not None else None,
             valid_idx=valid_idx.detach().cpu().numpy() if valid_idx is not None else None,
             ot_cost=float(ot_cost.detach().cpu().item()) if ot_cost is not None else None,
-            reg_cost=float(reg_cost.detach().cpu().item()) if reg_cost is not None else None,
+            mono_cost=float(mono_cost.detach().cpu().item()) if mono_cost is not None else None,
+            entropy_cost=float(entropy_cost.detach().cpu().item()) if entropy_cost is not None else None,
+            ot_divergence_cost=float(ot_divergence_cost.detach().cpu().item()) if ot_divergence_cost is not None else None,
             mono_loss=float(mono_loss.detach().cpu().item()) if mono_loss is not None else None,
+            P_entropy_loss=float(P_entropy_loss.detach().cpu().item()) if P_entropy_loss is not None else None,
+            ot_divergence_loss=float(ot_divergence_loss.detach().cpu().item()) if ot_divergence_loss is not None else None,
             total=float(total.detach().cpu().item()) if total is not None else None,
             real_A=real_A_arr,
             real_B=real_B_arr,
@@ -640,13 +662,21 @@ class WPSBModel(BaseModel):
 
                 if ot_cost is not None:
                     f.write(f'ot_cost (distance): {float(ot_cost.detach().cpu().item()):.6f}\n')
-                if reg_cost is not None:
-                    f.write(f'reg_cost (monotone weighted): {float(reg_cost.detach().cpu().item()):.6f}\n')
+                if mono_cost is not None:
+                    f.write(f'mono_cost (monotone weighted): {float(mono_cost.detach().cpu().item()):.6f}\n')
+                if entropy_cost is not None:
+                    f.write(f'entropy_cost (P entropy weighted): {float(entropy_cost.detach().cpu().item()):.6f}\n')
+                if ot_divergence_cost is not None:
+                    f.write(f'ot_divergence_cost (divergence weighted): {float(ot_divergence_cost.detach().cpu().item()):.6f}\n')
                 if mono_loss is not None:
                     f.write(f'mono_loss (raw): {float(mono_loss.detach().cpu().item()):.6f}\n')
+                if P_entropy_loss is not None:
+                    f.write(f'P_entropy_loss (raw): {float(P_entropy_loss.detach().cpu().item()):.6f}\n')
+                if ot_divergence_loss is not None:
+                    f.write(f'ot_divergence_loss (raw): {float(ot_divergence_loss.detach().cpu().item()):.6f}\n')
                 if total is not None:
-                    f.write(f'total (distance + reg): {float(total.detach().cpu().item()):.6f}\n')
-                if (ot_cost is not None) or (reg_cost is not None) or (mono_loss is not None) or (total is not None):
+                    f.write(f'total (distance + mono + entropy + divergence): {float(total.detach().cpu().item()):.6f}\n')
+                if (ot_cost is not None) or (mono_cost is not None) or (entropy_cost is not None) or (ot_divergence_cost is not None) or (mono_loss is not None) or (P_entropy_loss is not None) or (ot_divergence_loss is not None) or (total is not None):
                     f.write('\n')
 
                 if P is not None:
@@ -705,6 +735,31 @@ class WPSBModel(BaseModel):
                 fig.colorbar(im, ax=ax)
                 fig.tight_layout()
                 fig.savefig(base + '_M.png')
+                plt.close(fig)
+
+            # ot_divergence=True のときのみ P_d / M_d が details に入る
+            if P_d is not None:
+                P_d_cpu = P_d.detach().cpu().numpy()
+                fig, ax = plt.subplots(figsize=(4, 3))
+                im = ax.imshow(P_d_cpu, aspect='auto', origin='lower')
+                ax.set_xlabel('fake frame index')
+                ax.set_ylabel('fake frame index')
+                ax.set_title('transport plan P_d')
+                fig.colorbar(im, ax=ax)
+                fig.tight_layout()
+                fig.savefig(base + '_P_d.png')
+                plt.close(fig)
+
+            if M_d is not None:
+                M_d_cpu = M_d.detach().cpu().numpy()
+                fig, ax = plt.subplots(figsize=(4, 3))
+                im = ax.imshow(M_d_cpu, aspect='auto', origin='lower', cmap='viridis')
+                ax.set_xlabel('fake frame index')
+                ax.set_ylabel('fake frame index')
+                ax.set_title('cost matrix M_d')
+                fig.colorbar(im, ax=ax)
+                fig.tight_layout()
+                fig.savefig(base + '_M_d.png')
                 plt.close(fig)
 
             if U is not None:
@@ -843,6 +898,8 @@ class WPSBModel(BaseModel):
             seq_ot = 0.0
             seq_ot_dist = 0.0
             seq_ot_reg = 0.0
+            seq_ot_entropy = 0.0
+            seq_ot_divergence = 0.0
 
             for i in range(b):
                 ot_val, terms = sequence_ot_loss_torch(
@@ -852,6 +909,10 @@ class WPSBModel(BaseModel):
                     iters=getattr(self.opt, 'seq_ot_iters', 50),
                     monotone=getattr(self.opt, 'seq_ot_monotone', True),
                     monotone_penalty=getattr(self.opt, 'seq_ot_monotone_penalty', 1.0),
+                    P_entropy=getattr(self.opt, 'seq_ot_p_entropy', True),
+                    P_entropy_penalty=getattr(self.opt, 'seq_ot_p_entropy_penalty', 1.0),
+                    ot_divergence=getattr(self.opt, 'seq_ot_divergence', False),
+                    ot_divergence_penalty=getattr(self.opt, 'seq_ot_divergence_penalty', -0.5),
                     normalize=(None if getattr(self.opt, 'seq_ot_normalize', 'mean') == 'none' else getattr(self.opt, 'seq_ot_normalize', 'mean')),
                     return_details=False,
                 )
@@ -859,11 +920,15 @@ class WPSBModel(BaseModel):
                 seq_ot = seq_ot + ot_val
                 if terms is not None:
                     seq_ot_dist = seq_ot_dist + terms['ot_cost']
-                    seq_ot_reg = seq_ot_reg + terms['reg_cost']
+                    seq_ot_reg = seq_ot_reg + terms['mono_cost']
+                    seq_ot_entropy = seq_ot_entropy + terms['entropy_cost']
+                    seq_ot_divergence = seq_ot_divergence + terms['ot_divergence_cost']
 
             loss_seq = seq_ot / b
             self.loss_SB_P = seq_ot_dist / b
             self.loss_SB_U = seq_ot_reg / b
+            self.loss_SB_ENT = seq_ot_entropy / b
+            self.loss_SB_DIV = seq_ot_divergence / b
         else:
             ot_val, terms = sequence_ot_loss_torch(
                 fake_seq,
@@ -872,6 +937,10 @@ class WPSBModel(BaseModel):
                 iters=getattr(self.opt, 'seq_ot_iters', 50),
                 monotone=getattr(self.opt, 'seq_ot_monotone', True),
                 monotone_penalty=getattr(self.opt, 'seq_ot_monotone_penalty', 1.0),
+                P_entropy=getattr(self.opt, 'seq_ot_p_entropy', True),
+                P_entropy_penalty=getattr(self.opt, 'seq_ot_p_entropy_penalty', 1.0),
+                ot_divergence=getattr(self.opt, 'seq_ot_divergence', False),
+                ot_divergence_penalty=getattr(self.opt, 'seq_ot_divergence_penalty', -0.5),
                 normalize=(None if getattr(self.opt, 'seq_ot_normalize', 'mean') == 'none' else getattr(self.opt, 'seq_ot_normalize', 'mean')),
                 return_details=False,
             )
@@ -879,7 +948,9 @@ class WPSBModel(BaseModel):
             loss_seq = ot_val
             if terms is not None:
                 self.loss_SB_P = terms['ot_cost']
-                self.loss_SB_U = terms['reg_cost']
+                self.loss_SB_U = terms['mono_cost']
+                self.loss_SB_ENT = terms['entropy_cost']
+                self.loss_SB_DIV = terms['ot_divergence_cost']
 
         # sequence OT だけを単体で backward したときに、fake_seq に
         # 実際に勾配が流れているかを直接確認するデバッグ用コード。

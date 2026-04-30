@@ -27,7 +27,7 @@ DATAROOT="${WORKSPACE_DIR}/data/org_data/moving_mnist"
 DATAROOT_B="${WORKSPACE_DIR}/data/preprocessed/bspline_transformed"
 
 # 実験名（保存先の最後のフォルダ名として使用）
-NAME="moving_mnist_seg_paired_sb_wo_GL_w_entropy"
+NAME="moving_mnist_seg_paired_sb_wo_GL_w_otdiv"
 
 # GPU設定
 GPU_IDS=0
@@ -65,11 +65,11 @@ LAMBDA_SB=1.0
 LAMBDA_NCE=0
 
 # sequence OT (P entropy)
-SEQ_OT_P_ENTROPY=${SEQ_OT_P_ENTROPY:-1}
-SEQ_OT_P_ENTROPY_PENALTY=${SEQ_OT_P_ENTROPY_PENALTY:-1.0}
+SEQ_OT_P_ENTROPY=${SEQ_OT_P_ENTROPY:-0}
+SEQ_OT_P_ENTROPY_PENALTY=${SEQ_OT_P_ENTROPY_PENALTY:-0.0}
 
 # sequence OT (divergence)
-SEQ_OT_DIVERGENCE=${SEQ_OT_DIVERGENCE:-0}
+SEQ_OT_DIVERGENCE=${SEQ_OT_DIVERGENCE:-1}
 SEQ_OT_DIVERGENCE_PENALTY=${SEQ_OT_DIVERGENCE_PENALTY:--0.5}
 
 # シーケンス設定

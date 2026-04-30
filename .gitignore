@@ -29,4 +29,5 @@ unsup_video_lstm
 UNSB-main/tmp_fid/
 **/tmp_fid/
 **/assets/
+data
     
