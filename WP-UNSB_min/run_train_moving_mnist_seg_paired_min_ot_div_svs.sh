@@ -174,7 +174,8 @@ cmd=(python3 train.py
   --lambda_NCE ${LAMBDA_NCE}
   --save_ot_details
   --ot_details_max_samples 10
-  --lmda 0.5
+  --lmda 0.03
+  --sinkhorn_type "sinkhorn_log"
   --sb_mode seq_ot
   --seq_ot_normalize "mean"
   --seq_ot_p_entropy ${SEQ_OT_P_ENTROPY}

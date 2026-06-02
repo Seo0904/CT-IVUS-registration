@@ -30,7 +30,7 @@ DATAROOT_B="${WORKSPACE_DIR}/data/preprocessed/bspline_transformed"
 NAME="moving_mnist_seg_paired_sb_wo_GL_w_otdiv_005"
 
 # GPU設定
-GPU_IDS=1
+GPU_IDS=0
 
 # ===== W&B logging (optional) =====
 USE_WANDB=${USE_WANDB:-1}
@@ -174,7 +174,7 @@ cmd=(python3 train.py
   --lambda_NCE ${LAMBDA_NCE}
   --save_ot_details
   --ot_details_max_samples 10
-  --lmda 0.5
+  --lmda 0.03
   --sb_mode seq_ot
   --seq_ot_normalize "mean"
   --seq_ot_p_entropy ${SEQ_OT_P_ENTROPY}

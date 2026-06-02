@@ -125,7 +125,7 @@ if __name__ == '__main__':
 
     visualizer = Visualizer(opt)   # create a visualizer that display/save images and plots
     opt.visualizer = visualizer
-    total_iters = 0                # the total number of training iterations
+    total_iters = opt.iter_count   # the total number of training iterations (resumes W&B step when set)
 
     optimize_time = 0.1
 
@@ -165,11 +165,17 @@ if __name__ == '__main__':
             if total_iters % opt.display_freq == 0:   # display images on visdom and save images to a HTML file
                 save_result = total_iters % opt.update_html_freq == 0
                 model.compute_visuals()
-                visualizer.display_current_results(model.get_current_visuals(), epoch, save_result)
+                visualizer.display_current_results(
+                    model.get_current_visuals(), epoch, save_result,
+                    global_step=total_iters, split='train',
+                )
 
             if total_iters % opt.print_freq == 0:    # print training losses and save logging information to the disk
                 losses = model.get_current_losses()
-                visualizer.print_current_losses(epoch, epoch_iter, losses, optimize_time, t_data)
+                visualizer.print_current_losses(
+                    epoch, epoch_iter, losses, optimize_time, t_data,
+                    global_step=total_iters, split='train',
+                )
                 if opt.display_id is None or opt.display_id > 0:
                     visualizer.plot_current_losses(epoch, float(epoch_iter) / dataset_size, losses)
 
@@ -201,6 +207,8 @@ if __name__ == '__main__':
                 },
                 0,
                 0,
+                global_step=total_iters,
+                split='val',
             )
             if opt.display_id is None or opt.display_id > 0:
                 visualizer.plot_current_losses(
@@ -215,6 +223,37 @@ if __name__ == '__main__':
             # Compute FID using PNG-based pipeline (same as WP-UNSB)
             fid = run_fid(model, opt, epoch)
 
+            # log FID into the same loss_log.txt format and W&B
+            visualizer.print_current_losses(
+                epoch,
+                0,
+                {'val_FID': fid},
+                0,
+                0,
+                global_step=total_iters,
+                split='val',
+            )
+
+            # log a single validation sample visuals to W&B (optional)
+            if getattr(opt, 'use_wandb', False):
+                try:
+                    val_opt = build_val_opt(opt)
+                    val_dataset = create_dataset(val_opt)
+                    with torch.no_grad():
+                        for vdata in val_dataset:
+                            model.set_input(vdata)
+                            model.forward()
+                            model.compute_visuals()
+                            visualizer.wandb_log_visuals(
+                                model.get_current_visuals(),
+                                epoch,
+                                global_step=total_iters,
+                                split='val',
+                            )
+                            break
+                except Exception as e:
+                    print(f"[wandb][val_visuals] failed: {e}")
+
             # Save best model based on FID (lower is better)
             if fid < best_fid:
                 best_fid = fid
@@ -222,11 +261,43 @@ if __name__ == '__main__':
                 print(f'[Best Model] New best FID: {best_fid:.4f} at epoch {epoch}')
                 model.save_networks('best')
 
+                if getattr(opt, 'use_wandb', False):
+                    visualizer.print_current_losses(
+                        epoch,
+                        0,
+                        {'val_best_FID': best_fid, 'val_best_epoch': best_epoch},
+                        0,
+                        0,
+                        global_step=total_iters,
+                        split='val',
+                    )
+
         print('End of epoch %d / %d \t Time Taken: %d sec' % (epoch, opt.n_epochs + opt.n_epochs_decay, time.time() - epoch_start_time))
         model.update_learning_rate()                     # update learning rates at the end of every epoch.
+
+        # log current LR for plotting / W&B
+        try:
+            lr = model.optimizers[0].param_groups[0]['lr']
+            visualizer.print_current_losses(
+                epoch,
+                0,
+                {'lr': lr},
+                0,
+                0,
+                global_step=total_iters,
+                split='train',
+            )
+        except Exception:
+            pass
 
     # Print final best model info
     print(f'\n{"="*50}')
     print('Training Complete!')
     print(f'Best Model: Epoch {best_epoch} with FID {best_fid:.4f}')
     print(f'{"="*50}')
+
+    # close W&B run
+    try:
+        visualizer.wandb.finish()
+    except Exception:
+        pass

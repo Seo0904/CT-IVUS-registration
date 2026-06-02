@@ -42,5 +42,9 @@ class TrainOptions(BaseOptions):
         parser.add_argument('--lr_policy', type=str, default='linear', help='learning rate policy. [linear | step | plateau | cosine]')
         parser.add_argument('--lr_decay_iters', type=int, default=50, help='multiply by a gamma every lr_decay_iters iterations')
 
+        parser.add_argument('--debug', action='store_true', help='enable debug logging (grad stats, cuda sync timing, seq_ot prints)')
+        parser.add_argument('--grad_log_file', type=str, default='', help='path to txt for gradient sweep log (reg vs gradient stats)')
+        parser.add_argument('--grad_log_epoch', type=int, default=-1, help='epoch to log gradient (-1 = all epochs)')
+
         self.isTrain = True
         return parser

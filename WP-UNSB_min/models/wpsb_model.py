@@ -29,6 +29,7 @@ class WPSBModel(BaseModel):
         parser.add_argument('--netF_nc', type=int, default=256)
         parser.add_argument('--nce_T', type=float, default=0.07, help='temperature for NCE loss')
         parser.add_argument('--lmda', type=float, default=0.05, help='weight for orthogonal regularization')
+        parser.add_argument('--sinkhorn_type', type=str, default="sinkhorn", help='type of Sinkhorn algorithm for sequence OT: "sinkhorn" or "log"')
         parser.add_argument('--num_patches', type=int, default=256, help='number of patches per layer')
         parser.add_argument('--flip_equivariance',
                             type=util.str2bool, nargs='?', const=True, default=False,
@@ -105,6 +106,8 @@ class WPSBModel(BaseModel):
         if self.isTrain and self.opt.sb_mode in ['seq_ot', 'both']:
             # SB_P: OT distance, SB_U: monotone regularization, SB_ENT: entropy regularization, SB_DIV: divergence regularization
             self.loss_names += ['SB_P', 'SB_U', 'SB_ENT', 'SB_DIV']
+            # gradient of OT loss w.r.t. fake_seq
+            self.loss_names += ['SB_GRAD_NORM', 'SB_GRAD_MIN', 'SB_GRAD_MAX']
         self.visual_names = ['real_A','real_A_noisy', 'fake_B', 'real_B']
         if self.opt.phase == 'test':
             self.visual_names = ['real', 'real_B']
@@ -141,15 +144,15 @@ class WPSBModel(BaseModel):
                 self.criterionNCE.append(PatchNCELoss(opt).to(self.device))
 
             self.criterionIdt = torch.nn.L1Loss().to(self.device)
-            self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, opt.beta2))
-            # self.optimizer_D = torch.optim.Adam(self.netD.parameters(), lr=opt.lr, betas=(opt.beta1, opt.beta2))
+            self.optimizer_G = torch.optim.AdamW(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, opt.beta2))
+            # self.optimizer_D = torch.optim.AdamW(self.netD.parameters(), lr=opt.lr, betas=(opt.beta1, opt.beta2))
             
             self.optimizers.append(self.optimizer_G)
             # self.optimizers.append(self.optimizer_D)
             if self.opt.sb_mode == "both":
                 self.netE = networks.define_D(opt.output_nc*4, opt.ndf, opt.netD, opt.n_layers_D, opt.normD,
                                           opt.init_type, opt.init_gain, opt.no_antialias, self.gpu_ids, opt)
-                self.optimizer_E = torch.optim.Adam(self.netE.parameters(), lr=opt.lr, betas=(opt.beta1, opt.beta2))
+                self.optimizer_E = torch.optim.AdamW(self.netE.parameters(), lr=opt.lr, betas=(opt.beta1, opt.beta2))
                 self.optimizers.append(self.optimizer_E)
 
             # OT 詳細を保存する場合のカウンタと出力ディレクトリ
@@ -159,10 +162,13 @@ class WPSBModel(BaseModel):
                 os.makedirs(base_dir, exist_ok=True)
                 self.ot_details_dir = base_dir
 
-        # 勾配の流れをログに出すための簡易デバッグフラグ
-        # 必要に応じて True/False を切り替えて使う想定
-        self._grad_debug_enabled = True
+        self._grad_debug_enabled = getattr(opt, 'debug', False)
         self._grad_debug_step = 0
+        self._grad_log_iter = 0
+        self.current_epoch = 0
+        self.loss_SB_GRAD_NORM = 0.0
+        self.loss_SB_GRAD_MIN = 0.0
+        self.loss_SB_GRAD_MAX = 0.0
 
     def _log_grad_stats_for_net(self, net, net_name, stage):
         """ネットワーク net について、勾配が付いているパラメータ数と
@@ -244,7 +250,7 @@ class WPSBModel(BaseModel):
                 self.compute_E_loss().backward()
                 self._log_grad_stats('data_dependent_after_E_backward')
             if self.opt.lambda_NCE > 0.0:
-                self.optimizer_F = torch.optim.Adam(self.netF.parameters(), lr=self.opt.lr, betas=(self.opt.beta1, self.opt.beta2))
+                self.optimizer_F =  torch.optim.AdamW(self.netF.parameters(), lr=self.opt.lr, betas=(self.opt.beta1, self.opt.beta2))
                 self.optimizers.append(self.optimizer_F)
 
     def optimize_parameters(self):
@@ -879,19 +885,18 @@ class WPSBModel(BaseModel):
         real_seq = self.real_B
 
         # sequence OT がどのテンソルから構成されていて、
-        # 勾配を流せる状態かどうかを確認するためのログ
-        try:
-            print(
-                "[GRAD][seq_ot] fake_seq shape=", tuple(fake_seq.shape),
-                "requires_grad=", fake_seq.requires_grad,
-                "grad_fn=", type(fake_seq.grad_fn).__name__ if fake_seq.grad_fn is not None else None,
-                "| real_seq shape=", tuple(real_seq.shape),
-                "requires_grad=", real_seq.requires_grad,
-                "grad_fn=", type(real_seq.grad_fn).__name__ if real_seq.grad_fn is not None else None,
-            )
-        except Exception:
-            # 形状取得などで失敗しても学習は継続させる
-            pass
+        if self._grad_debug_enabled:
+            try:
+                print(
+                    "[GRAD][seq_ot] fake_seq shape=", tuple(fake_seq.shape),
+                    "requires_grad=", fake_seq.requires_grad,
+                    "grad_fn=", type(fake_seq.grad_fn).__name__ if fake_seq.grad_fn is not None else None,
+                    "| real_seq shape=", tuple(real_seq.shape),
+                    "requires_grad=", real_seq.requires_grad,
+                    "grad_fn=", type(real_seq.grad_fn).__name__ if real_seq.grad_fn is not None else None,
+                )
+            except Exception:
+                pass
 
         if fake_seq.dim() == 5 and real_seq.dim() == 5:
             b, t, c, h, w = fake_seq.shape
@@ -915,6 +920,7 @@ class WPSBModel(BaseModel):
                     ot_divergence_penalty=getattr(self.opt, 'seq_ot_divergence_penalty', -0.5),
                     normalize=(None if getattr(self.opt, 'seq_ot_normalize', 'mean') == 'none' else getattr(self.opt, 'seq_ot_normalize', 'mean')),
                     return_details=False,
+                    sinkhorn_type=getattr(self.opt, 'seq_ot_sinkhorn_type', 'sinkhorn'),
                 )
 
                 seq_ot = seq_ot + ot_val
@@ -943,6 +949,7 @@ class WPSBModel(BaseModel):
                 ot_divergence_penalty=getattr(self.opt, 'seq_ot_divergence_penalty', -0.5),
                 normalize=(None if getattr(self.opt, 'seq_ot_normalize', 'mean') == 'none' else getattr(self.opt, 'seq_ot_normalize', 'mean')),
                 return_details=False,
+                sinkhorn_type=getattr(self.opt, 'seq_ot_sinkhorn_type', 'sinkhorn'),
             )
 
             loss_seq = ot_val
@@ -980,5 +987,39 @@ class WPSBModel(BaseModel):
                     )
             except Exception as e:
                 print("[GRAD][seq_ot_debug] error while computing grad:", str(e))
+
+        # --- gradient stats (always computed; written to wandb/log and optionally to sweep txt) ---
+        if self.isTrain:
+            try:
+                g = torch.autograd.grad(loss_seq, fake_seq, retain_graph=True, allow_unused=True)[0]
+                if g is not None:
+                    self.loss_SB_GRAD_NORM = g.norm().item()
+                    self.loss_SB_GRAD_MIN  = g.min().item()
+                    self.loss_SB_GRAD_MAX  = g.max().item()
+                else:
+                    self.loss_SB_GRAD_NORM = 0.0
+                    self.loss_SB_GRAD_MIN  = 0.0
+                    self.loss_SB_GRAD_MAX  = 0.0
+            except Exception:
+                pass
+
+        grad_log_file = getattr(self.opt, 'grad_log_file', '')
+        grad_log_epoch = getattr(self.opt, 'grad_log_epoch', -1)
+        _should_log = grad_log_file and self.isTrain and (grad_log_epoch == -1 or self.current_epoch == grad_log_epoch)
+        if _should_log:
+            self._grad_log_iter += 1
+            line = (
+                f"reg={self.opt.lmda:.5f}"
+                f" iter={self._grad_log_iter}"
+                f" g_min={self.loss_SB_GRAD_MIN:.4e}"
+                f" g_max={self.loss_SB_GRAD_MAX:.4e}"
+                f" g_norm={self.loss_SB_GRAD_NORM:.4e}"
+                f" loss={loss_seq.item():.6f}\n"
+            )
+            try:
+                with open(grad_log_file, 'a') as _f:
+                    _f.write(line)
+            except Exception:
+                pass
 
         return loss_seq

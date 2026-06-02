@@ -6,6 +6,8 @@ import time
 from . import util, html
 from subprocess import Popen, PIPE
 
+from .wandb_logger import WandbLogger
+
 if sys.version_info[0] == 2:
     VisdomExceptionBase = Exception
 else:
@@ -60,6 +62,7 @@ class Visualizer():
         Step 4: create a logging file to store training losses
         """
         self.opt = opt  # cache the option
+        self.wandb = WandbLogger(opt)
         if opt.display_id is None:
             self.display_id = np.random.randint(100000) * 10  # just a random display id
         else:
@@ -103,7 +106,7 @@ class Visualizer():
         print('Command: %s' % cmd)
         Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
 
-    def display_current_results(self, visuals, epoch, save_result):
+    def display_current_results(self, visuals, epoch, save_result, global_step=None, split='train'):
         """Display current results on visdom; save current results to an HTML file.
 
         Parameters:
@@ -165,6 +168,9 @@ class Visualizer():
                 except VisdomExceptionBase:
                     self.create_visdom_connections()
 
+        # W&B image logging (display_id に依存しない)
+        self._wandb_log_visuals(visuals, epoch, global_step=global_step, split=split)
+
         if self.use_html and (save_result or not self.saved):  # save images to an HTML file if they haven't been saved.
             self.saved = True
             # save images to the disk
@@ -187,6 +193,82 @@ class Visualizer():
                     links.append(img_path)
                 webpage.add_images(ims, txts, links, width=self.win_size)
             webpage.save()
+
+    def _tensor_to_wandb_image(self, tensor, caption=None):
+        """Convert a tensor (B,C,H,W) or (B,T,C,H,W) into a stitched RGB uint8 image for wandb."""
+        if not self.wandb.enabled or self.wandb.wandb is None:
+            return None
+
+        try:
+            import numpy as _np
+            import torch
+
+            if isinstance(tensor, _np.ndarray):
+                img = tensor
+                if img.ndim == 2:
+                    img = _np.tile(img[..., None], (1, 1, 3))
+                return self.wandb.wandb.Image(img, caption=caption)
+
+            if not isinstance(tensor, torch.Tensor):
+                return None
+
+            x = tensor.detach().cpu()
+
+            # sequence: (B,T,C,H,W) -> stitch frames horizontally for the first sample
+            if x.dim() == 5:
+                x = x[0]  # (T,C,H,W)
+                t, c, h, w = x.shape
+                x = x.clamp(-1.0, 1.0)
+                x = (x + 1.0) / 2.0
+                x = _np.clip(x.numpy(), 0.0, 1.0)
+                if c == 1:
+                    x = _np.tile(x, (1, 3, 1, 1))
+                    c = 3
+                canvas = _np.zeros((h, w * t, c), dtype=_np.float32)
+                for i in range(t):
+                    frame = x[i].transpose(1, 2, 0)  # (H,W,C)
+                    canvas[:, i * w:(i + 1) * w, :] = frame
+                img = (canvas * 255.0).astype(_np.uint8)
+                return self.wandb.wandb.Image(img, caption=caption)
+
+            # image: (B,C,H,W) or (C,H,W)
+            if x.dim() == 4:
+                x = x[0]
+            if x.dim() != 3:
+                return None
+            x = x.clamp(-1.0, 1.0)
+            x = (x + 1.0) / 2.0
+            x = x.numpy()
+            if x.shape[0] == 1:
+                x = _np.tile(x, (3, 1, 1))
+            img = (x.transpose(1, 2, 0) * 255.0).astype(_np.uint8)
+            return self.wandb.wandb.Image(img, caption=caption)
+        except Exception as e:
+            print(f"[wandb] image conversion failed: {e}")
+            return None
+
+    def _wandb_log_visuals(self, visuals, epoch, global_step=None, split='train'):
+        if not self.wandb.enabled:
+            return
+        if not getattr(self.opt, 'wandb_log_images', True):
+            return
+
+        freq = int(getattr(self.opt, 'wandb_image_freq', 2000) or 2000)
+        if global_step is not None and freq > 0 and (global_step % freq) != 0:
+            return
+
+        payload = {'epoch': int(epoch)}
+        for label, tensor in visuals.items():
+            wimg = self._tensor_to_wandb_image(tensor, caption=f"{split}:{label} (epoch={epoch})")
+            if wimg is not None:
+                payload[f"{split}/visuals/{label}"] = wimg
+
+        if payload:
+            self.wandb.log(payload, step=global_step)
+
+    def wandb_log_visuals(self, visuals, epoch, global_step=None, split='train'):
+        """Public wrapper for logging visuals to W&B with the same frequency control."""
+        self._wandb_log_visuals(visuals, epoch, global_step=global_step, split=split)
 
     def plot_current_losses(self, epoch, counter_ratio, losses):
         """display the current losses on visdom display: dictionary of error labels and values
@@ -223,7 +305,7 @@ class Visualizer():
             self.create_visdom_connections()
 
     # losses: same format as |losses| of plot_current_losses
-    def print_current_losses(self, epoch, iters, losses, t_comp, t_data):
+    def print_current_losses(self, epoch, iters, losses, t_comp, t_data, global_step=None, split='train'):
         """print current losses on console; also save the losses to the disk
 
         Parameters:
@@ -240,3 +322,21 @@ class Visualizer():
         print(message)  # print the message
         with open(self.log_name, "a") as log_file:
             log_file.write('%s\n' % message)  # save the message
+
+        # W&B scalar logging
+        if self.wandb.enabled:
+            payload = {
+                'epoch': float(epoch),
+                f"{split}/time": float(t_comp),
+            }
+            if global_step is not None:
+                payload['total_iters'] = int(global_step)
+            for k, v in losses.items():
+                try:
+                    wandb_key = k
+                    if split == 'val' and isinstance(k, str) and k.startswith('val_'):
+                        wandb_key = k[4:]
+                    payload[f"{split}/{wandb_key}"] = float(v)
+                except Exception:
+                    pass
+            self.wandb.log(payload, step=global_step)

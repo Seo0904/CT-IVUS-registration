@@ -51,7 +51,10 @@ class SBModel(BaseModel):
 
         # specify the training losses you want to print out.
         # The training/test scripts will call <BaseModel.get_current_losses>
-        self.loss_names = ['G_GAN', 'D_real', 'D_fake', 'G', 'NCE','SB']
+        # 損失はできるだけ細かく分けて保存する:
+        #   - 個別成分: G_GAN, SB, NCE (Generator側) / D_real, D_fake (Discriminator側)
+        #   - 合体版  : G (Generator合計), D (Discriminator合計), E (E-net合計)
+        self.loss_names = ['G_GAN', 'SB', 'NCE', 'D_real', 'D_fake', 'G', 'D', 'E']
         self.visual_names = ['real_A','real_A_noisy', 'fake_B', 'real_B']
         if self.opt.phase == 'test':
             self.visual_names = ['real', 'real_B']

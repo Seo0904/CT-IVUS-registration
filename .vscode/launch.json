@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "view_IVUS_latest (AC/png)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/CT-IVUS/script/preprocess/IVUS/view_IVUS_latest.py",
+            "args": ["--target", "AC", "--save-format", "png"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "view_IVUS_latest (HT/meta)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/CT-IVUS/script/preprocess/IVUS/view_IVUS_latest.py",
+            "args": ["--target", "HT", "--save-format", "tiff"],
+            "console": "integratedTerminal"
+        }
+    ]
+}

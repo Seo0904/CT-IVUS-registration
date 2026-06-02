@@ -87,19 +87,20 @@ class MovingMnistPairedDataset(BaseDataset):
         val_ratio = opt.val_ratio if hasattr(opt, 'val_ratio') else 0.1
         # test_ratio = 1 - train_ratio - val_ratio (default: 0.2)
         
+        # train 1000 seq / val 200 seq に固定（WP-UNSB_min_ver2 と揃える）
         num_sequences = data_A.shape[0]
-        train_end = int(num_sequences * train_ratio)
-        val_end = int(num_sequences * (train_ratio + val_ratio))
-        
+        train_end = 1000
+        val_end = 1200
+
         self.phase = opt.phase if hasattr(opt, 'phase') else ('train' if opt.isTrain else 'test')
-        
+
         if self.phase == 'train':
-            # 学習時: 最初の70%を使用 (0-6999)
+            # 学習時: 最初の1000シーケンスを使用 (0-999)
             self.data_A = data_A[:train_end]
             self.data_B = data_B[:train_end]
             print(f"Train mode: using sequences 0-{train_end-1} ({train_end} sequences)")
         elif self.phase == 'val':
-            # 検証時: 次の10%を使用 (7000-7999)
+            # 検証時: 次の200シーケンスを使用 (1000-1199)
             self.data_A = data_A[train_end:val_end]
             self.data_B = data_B[train_end:val_end]
             print(f"Validation mode: using sequences {train_end}-{val_end-1} ({val_end - train_end} sequences)")

@@ -556,12 +556,15 @@ def view_kn() -> None:
 
 	想定構造 (例):
 		/workspace/data/org_data/IVUS/CCTI-calc-IVUS_OCT/KN/
-		  └ KN-18/
-		       └ KN-18 IVUS 2025.01.15/
+		  └ KN-1/
+		       └ KN-01 IVUS 2025.01.15/
 		            └ DICOM/00001IMG, 00002IMG, ...
 
 	出力:
-		/workspace/data/preprocessed/IVUS/KN/KN-018/<ファイル名>/0001.png ...
+		/workspace/data/preprocessed/IVUS/KN/KN-001/<ファイル名>/0001.png ...
+
+	- 患者ディレクトリ名 KN-N の数字を 02d でゼロ埋めして "KN-{N:02d} IVUS" で始まるサブディレクトリを探す。
+	- その下の DICOM/ ディレクトリ内のファイルを 1 ファイル = 1 シリーズとして処理する。
 	"""
 
 	src_dir = BASE_DATA_DIR / "KN"
@@ -579,12 +582,12 @@ def view_kn() -> None:
 		if not patient_dir.name.startswith("KN-"):
 			continue
 
-		# KN-18 -> KN-018 に正規化
-		patient_raw = patient_dir.name  # 例: KN-18
+		patient_raw = patient_dir.name  # 例: KN-1
 		try:
 			prefix, num_str = patient_raw.split("-", maxsplit=1)
 			num = int(num_str)
-			patient_id = f"{prefix}-{num:03d}"  # KN-018
+			patient_id = f"{prefix}-{num:03d}"   # KN-001
+			ivus_prefix = f"{prefix}-{num:02d}"  # KN-01
 		except Exception:
 			print(f"  [WARN] Unexpected patient dir name: {patient_raw}")
 			continue
@@ -592,101 +595,63 @@ def view_kn() -> None:
 		print(f"Processing patient: {patient_raw} -> {patient_id}")
 		patient_out_root = out_root / patient_id
 
-		# まず "<KN-18> IVUS" で始まるディレクトリを探す
+		# "KN-{N:02d} IVUS" で始まるディレクトリを探す
 		ivus_dirs = [
 			p for p in sorted(patient_dir.iterdir())
-			if p.is_dir() and p.name.startswith(f"{patient_raw} IVUS")
+			if p.is_dir() and p.name.startswith(f"{ivus_prefix} IVUS")
 		]
 
-		# KN-1 ～ KN-9 のように患者ディレクトリ名が 1 桁だが、
-		# その下の IVUS ディレクトリ名が KN-01 IVUS ... となっているケースにも対応する
-		if not ivus_dirs and patient_raw.startswith("KN-"):
-			try:
-				prefix, num_str = patient_raw.split("-", maxsplit=1)
-				num = int(num_str)
-				alt_name = f"{prefix}-{num:02d}"
-			except Exception:
-				alt_name = None
-
-			if alt_name is not None:
-				ivus_dirs = [
-					p for p in sorted(patient_dir.iterdir())
-					if p.is_dir() and p.name.startswith(f"{alt_name} IVUS")
-				]
-
-		if ivus_dirs:
-			ivus_root = ivus_dirs[0]
-		else:
-			# フォールバック: 直下の DICOM ディレクトリ
-			ivus_root = patient_dir / "DICOM"
-			if not ivus_root.exists():
-				print(f"  [SKIP] No IVUS dir or DICOM dir for {patient_raw}")
-				continue
-
-		print(f"  IVUS root: {ivus_root}")
-
-		# IVUS ルート直下の DICOM ディレクトリを決める
-		dicom_root = ivus_root / "DICOM"
-		if not dicom_root.exists():
-			# すでに DICOM 直下だった場合も一応サポート
-			dicom_root = ivus_root
-
-		if not dicom_root.exists():
-			print(f"  [SKIP] DICOM dir not found: {dicom_root}")
+		if not ivus_dirs:
+			print(f"  [SKIP] No '{ivus_prefix} IVUS *' dir for {patient_raw}")
 			continue
 
-		print(f"  DICOM root: {dicom_root}")
+		for ivus_root in ivus_dirs:
+			print(f"  IVUS root: {ivus_root}")
 
-		# DICOM 直下のファイル (00001IMG など、拡張子なしも含む) を処理
-		dicom_files = [
-			p for p in sorted(dicom_root.iterdir())
-			if p.is_file() and not p.name.startswith('.')
-		]
-
-		if not dicom_files:
-			print(f"  [WARN] No DICOM-like files under: {dicom_root}")
-			continue
-
-		for dicom_file in dicom_files:
-			file_name = dicom_file.name  # 例: 00001IMG
-			save_dir = patient_out_root / file_name
-			idx = 1
-
-			print(f"    Processing DICOM: {dicom_file}")
-			try:
-				ds = pydicom.dcmread(dicom_file, force=True)
-			except Exception as e:
-				print(f"Error reading {dicom_file}")
-				print(f"type={type(e)}")
-				print(f"repr={repr(e)}")
+			dicom_root = ivus_root / "DICOM"
+			if not dicom_root.exists() or not dicom_root.is_dir():
+				print(f"  [SKIP] DICOM dir not found: {dicom_root}")
 				continue
 
-			if SAVE_MODE == "meta":
-				save_dicom_metadata(ds, save_dir, dicom_file)
+			print(f"  DICOM root: {dicom_root}")
+
+			dicom_files = [
+				p for p in sorted(dicom_root.iterdir())
+				if p.is_file() and not p.name.startswith('.')
+			]
+
+			if not dicom_files:
+				print(f"  [WARN] No DICOM-like files under: {dicom_root}")
 				continue
 
-			print("TransferSyntaxUID:", getattr(ds.file_meta, "TransferSyntaxUID", "N/A"))
-			print("Modality:", getattr(ds, "Modality", "N/A"))
-			print("Rows:", getattr(ds, "Rows", "N/A"))
-			print("Columns:", getattr(ds, "Columns", "N/A"))
-			print("BitsAllocated:", getattr(ds, "BitsAllocated", "N/A"))
-			print("SamplesPerPixel:", getattr(ds, "SamplesPerPixel", "N/A"))
-			print("PhotometricInterpretation:", getattr(ds, "PhotometricInterpretation", "N/A"))
+			for dicom_file in dicom_files:
+				file_name = dicom_file.name
+				save_dir = patient_out_root / file_name
+				idx = 1
 
-			try:
-				img = ds.pixel_array
-			except Exception as e:
-				print(f"Error getting pixel_array from {dicom_file}")
-				print(f"type={type(e)}")
-				print(f"repr={repr(e)}")
-				continue
+				print(f"    Processing DICOM: {dicom_file}")
+				try:
+					ds = pydicom.dcmread(dicom_file, force=True)
+				except Exception as e:
+					print(f"      Error reading {dicom_file}: {e}")
+					continue
 
-			print(
-				f"      shape: {img.shape}, dtype: {img.dtype}, "
-				f"min: {np.min(img)}, max: {np.max(img)}"
-			)
+				if SAVE_MODE == "meta":
+					save_dicom_metadata(ds, save_dir, dicom_file)
+					continue
 
-			_ = SAVE_SEQUENTIAL_FUNC(img, save_dir, start_index=idx)
+				try:
+					img = ds.pixel_array
+				except Exception as e:
+					print(f"      Error getting pixel_array from {dicom_file}: {e}")
+					continue
+
+				print(
+					f"      shape: {img.shape}, dtype: {img.dtype}, "
+					f"min: {np.min(img)}, max: {np.max(img)}"
+				)
+
+				_ = SAVE_SEQUENTIAL_FUNC(img, save_dir, start_index=idx)
 
 
 def view_mn() -> None:
@@ -1036,26 +1001,21 @@ def view_ac() -> None:
 
 						_ = SAVE_SEQUENTIAL_FUNC(img, save_dir, start_index=idx)
 
-				# パターン2: 日付 IVUS / VISICUBE など配下の最下層ディレクトリごとに処理
+				# パターン2: 日付ディレクトリ / VISICUBE など配下の最下層ディレクトリを処理
+				# 各 DICOM ファイル 1 本に複数フレームのシーケンスが入っているため、
+				# ファイル名をディレクトリ名としてフレームを連番で保存する。
 				else:
-					# leaf_dir (例: 20210519) を 1 series としつつ、
-					# その配下では DICOM ファイルごとに保存先ディレクトリを分ける。
-					# (複数ファイルを同一 save_dir に start_index=1 で保存すると上書きが起きるため)
-					series_name = leaf_dir.name
-
 					for dicom_file in files:
-						# ファイル名ごとにディレクトリを分けて保存
 						if dicom_file.suffix.lower() == ".dcm":
 							file_key = dicom_file.stem
 						else:
 							file_key = dicom_file.name
 
-						# 出力パスに日付ディレクトリ (series_name) は含めない
 						save_dir = patient_out_root / file_key
 						idx = 1
 
 						print(
-							f"      Processing DICOM: {dicom_file} -> (leaf={series_name}) file {file_key}"
+							f"      Processing DICOM: {dicom_file} -> {file_key}"
 						)
 						try:
 							ds = pydicom.dcmread(dicom_file, force=True)

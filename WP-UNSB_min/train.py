@@ -47,10 +47,7 @@ def build_train_snapshot_opt(opt):
     return tr_opt
 
 
-def run_validation(model, opt, epoch):
-    val_opt = build_val_opt(opt)
-    val_dataset = create_dataset(val_opt)
-
+def run_validation(model, opt, epoch, val_dataset):
     # set eval
     for name in model.model_names:
         if isinstance(name, str):
@@ -95,10 +92,7 @@ def run_validation(model, opt, epoch):
     return results
 
 
-def run_fid(model, opt, epoch):
-    val_opt = build_val_opt(opt)
-    val_dataset = create_dataset(val_opt)
-
+def run_fid(model, opt, epoch, val_dataset):
     # temp dirs
     tmp_gen_dir = tempfile.mkdtemp()
     tmp_gt_dir = tempfile.mkdtemp()
@@ -162,7 +156,7 @@ def run_fid(model, opt, epoch):
     return fid
 
 
-def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10):
+def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10, train_snapshot_dataset=None, val_snapshot_dataset=None):
     """10epochごとに、train/val それぞれから数シーケンスを取り出して
     sequence OT の輸送計画を保存する。
 
@@ -198,11 +192,9 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10):
     try:
         for split in ['train', 'val']:
             if split == 'train':
-                snap_opt = build_train_snapshot_opt(opt)
+                dataset = train_snapshot_dataset if train_snapshot_dataset is not None else create_dataset(build_train_snapshot_opt(opt))
             else:
-                snap_opt = build_val_opt(opt)
-
-            dataset = create_dataset(snap_opt)
+                dataset = val_snapshot_dataset if val_snapshot_dataset is not None else create_dataset(build_val_opt(opt))
 
             # split / epoch ごとにサブディレクトリを切る
             base_dir = os.path.join(model.ot_details_dir, f"{split}_epoch{epoch:04d}")
@@ -304,6 +296,9 @@ if __name__ == '__main__':
     dataset2 = create_dataset(opt)
     dataset_size = len(dataset)
 
+    val_dataset_fixed = create_dataset(build_val_opt(opt))
+    train_snapshot_dataset_fixed = create_dataset(build_train_snapshot_opt(opt))
+
     model = create_model(opt)
     print('The number of training sequences = %d' % dataset_size)
 
@@ -318,7 +313,9 @@ if __name__ == '__main__':
     # 学習開始前の初期状態 (epoch=0) についても、固定シーケンスの OT 詳細を保存しておく
     # （0, 10, 20, ... のように揃えて可視化できるようにする）
     if getattr(opt, 'save_ot_details', False) and not getattr(opt, 'continue_train', False):
-        save_ot_snapshots(model, opt, epoch=0, num_samples=3, epoch_interval=10)
+        save_ot_snapshots(model, opt, epoch=0, num_samples=3, epoch_interval=10,
+                          train_snapshot_dataset=train_snapshot_dataset_fixed,
+                          val_snapshot_dataset=val_dataset_fixed)
 
     for epoch in range(opt.epoch_count, opt.n_epochs + opt.n_epochs_decay + 1):
         epoch_start_time = time.time()
@@ -326,6 +323,7 @@ if __name__ == '__main__':
         epoch_iter = 0
         visualizer.reset()
 
+        model.current_epoch = epoch
         dataset.set_epoch(epoch)
         dataset2.set_epoch(epoch)
 
@@ -339,7 +337,7 @@ if __name__ == '__main__':
             total_iters += batch_size
             epoch_iter += batch_size
 
-            if len(opt.gpu_ids) > 0:
+            if opt.debug and len(opt.gpu_ids) > 0:
                 torch.cuda.synchronize()
             optimize_start_time = time.time()
 
@@ -353,7 +351,7 @@ if __name__ == '__main__':
             model.set_input(data, data2)
             model.optimize_parameters()
 
-            if len(opt.gpu_ids) > 0:
+            if opt.debug and len(opt.gpu_ids) > 0:
                 torch.cuda.synchronize()
             optimize_time = (time.time() - optimize_start_time) / max(batch_size, 1) * 0.005 + 0.995 * optimize_time
 
@@ -394,7 +392,7 @@ if __name__ == '__main__':
         # validation frequency
         val_freq = getattr(opt, 'val_epoch_freq', opt.save_epoch_freq)
         if epoch % val_freq == 0:
-            val_metrics = run_validation(model, opt, epoch)
+            val_metrics = run_validation(model, opt, epoch, val_dataset_fixed)
             visualizer.print_current_losses(
                 epoch,
                 0,
@@ -411,15 +409,13 @@ if __name__ == '__main__':
             if opt.display_id is None or opt.display_id > 0:
                 visualizer.plot_current_losses(epoch, 1.0, {'val_SSIM': val_metrics['SSIM'], 'val_L2': val_metrics['L2']})
 
-            fid = run_fid(model, opt, epoch)
+            fid = run_fid(model, opt, epoch, val_dataset_fixed)
 
             # log a single validation sample visuals to W&B (optional)
             if getattr(opt, 'use_wandb', False):
                 try:
-                    val_opt = build_val_opt(opt)
-                    val_dataset = create_dataset(val_opt)
                     with torch.no_grad():
-                        for j, vdata in enumerate(val_dataset):
+                        for j, vdata in enumerate(val_dataset_fixed):
                             model.set_input(vdata)
                             model.forward()
                             model.compute_visuals()
@@ -446,7 +442,9 @@ if __name__ == '__main__':
 
             # 10epochごとに、train/val それぞれから同じシーケンス数本について
             # sequence OT の輸送計画を保存（P マトリクス等を PNG/npz として出力）
-            save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10)
+            save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10,
+                              train_snapshot_dataset=train_snapshot_dataset_fixed,
+                              val_snapshot_dataset=val_dataset_fixed)
 
             # If OT snapshot images exist, log a few to W&B
             if getattr(opt, 'use_wandb', False) and hasattr(model, 'ot_details_dir'):

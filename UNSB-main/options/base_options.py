@@ -76,6 +76,20 @@ class BaseOptions():
                             default=1, type=int,
                             help='Number of downsampling layers used by StyleGAN2Generator')
 
+        # Weights & Biases (wandb)
+        parser.add_argument('--use_wandb', action='store_true', help='enable Weights & Biases logging')
+        parser.add_argument('--wandb_project', type=str, default='UNSB-main', help='wandb project name')
+        parser.add_argument('--wandb_entity', type=str, default=None, help='wandb entity (user or team); optional')
+        parser.add_argument('--wandb_run_name', type=str, default=None, help='wandb run name; default uses opt.name')
+        parser.add_argument('--wandb_group', type=str, default=None, help='wandb group name; optional')
+        parser.add_argument('--wandb_tags', type=str, default=None, help='comma-separated tags for wandb; optional')
+        parser.add_argument('--wandb_mode', type=str, default=None, choices=[None, 'online', 'offline', 'disabled'],
+                    help='wandb mode; if None, wandb default is used')
+        parser.add_argument('--wandb_log_images', type=util.str2bool, nargs='?', const=True, default=True,
+                    help='log visuals (real/fake images) to wandb')
+        parser.add_argument('--wandb_image_freq', type=int, default=2000,
+                    help='frequency (global_step) of logging images to wandb')
+
         self.initialized = True
         return parser
 
