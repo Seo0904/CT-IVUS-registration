@@ -28,6 +28,12 @@ def build_val_opt(opt):
     val_opt.serial_batches = True
     val_opt.no_flip = True
     val_opt.batch_size = 1
+    # validation/FID は穴なし(non-holed) GT で測れるように、--val_data_file_B が
+    # 指定されていれば domain B を差し替える。train 側 (opt) はそのままなので
+    # 学習時の tgt は穴あきのまま保たれる。
+    val_data_file_B = getattr(opt, 'val_data_file_B', '')
+    if val_data_file_B:
+        val_opt.data_file_B = val_data_file_B
     return val_opt
 
 
@@ -113,7 +119,6 @@ def run_fid(model, opt, epoch, val_dataset):
             fake_B = model.fake_B.detach().cpu()  # (T,C,H,W) 相当（batch=1前提ならT枚）
             real_B = model.real_B.detach().cpu()
 
-            # ゼロ画素フレームを除外
             if real_B.dim() == 5:
                 b, t, c, h, w = real_B.shape
                 fake_flat = fake_B.view(b * t, c, h, w)
@@ -122,14 +127,18 @@ def run_fid(model, opt, epoch, val_dataset):
                 fake_flat = fake_B
                 real_flat = real_B
 
+            # FID は分布間距離なので fake/GT は対応付け不要。
+            #   - fake: 全フレームを使用（穴(ゼロ)位置でモデルが補完した出力も評価対象に含める）
+            #   - GT(real): 穴(ゼロ)フレームを除外し、実データの有効フレームのみを参照分布にする
+            # （穴なし GT を渡した場合は valid_idx が全フレームになるので、自動的に全 20 枚評価になる）
             valid_idx = get_valid_frame_idx(real_flat)
             if valid_idx.numel() > 0 and valid_idx.numel() < real_flat.shape[0]:
-                fake_flat = fake_flat[valid_idx]
                 real_flat = real_flat[valid_idx]
 
-            # 保存（フレーム単位）
+            # 保存（フレーム単位）。gen/gt は別集合なので枚数が違ってよい。
             for b in range(fake_flat.size(0)):
                 vutils.save_image(fake_flat[b], os.path.join(tmp_gen_dir, f"{i:04d}_{b:02d}.png"), normalize=True)
+            for b in range(real_flat.size(0)):
                 vutils.save_image(real_flat[b], os.path.join(tmp_gt_dir, f"{i:04d}_{b:02d}.png"), normalize=True)
 
     try:

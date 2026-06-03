@@ -116,7 +116,7 @@ def visualize_seq(images_dir: Path, seq_id: int) -> Image.Image:
 def main():
     parser = argparse.ArgumentParser(description="テスト結果シーケンス可視化")
     parser.add_argument("images_dir", type=Path, nargs='?',
-                         default="/workspace/data/experiment_result/WP-UNSB_min_ver2/moving-mnist/20260527_125919/test_results/moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze/test_best/images"
+                         default="/workspace/data/experiment_result/WP-UNSB_min_ver2/moving-mnist/20260527_125919/test_results/moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze/test_320/images"
                         ,help="test結果のimagesディレクトリ (fake_5/real/real_B を含むフォルダ)")
     parser.add_argument("--out_dir", type=Path, default=None,
                         help="出力先ディレクトリ (デフォルト: images_dir/../seq_vis)")

@@ -176,7 +176,7 @@ cmd=(python3 train.py
   --save_ot_details
   --ot_details_max_samples 10
   --lmda 0.10
-  --seq_ot_iters 150
+  --seq_ot_iters 10000
   --sinkhorn_type "sinkhorn_log"
   --sb_mode seq_ot
   --seq_ot_normalize "none"
