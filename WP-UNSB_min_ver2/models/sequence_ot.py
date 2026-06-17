@@ -188,6 +188,7 @@ def sequence_ot_loss_geo(
     fake_seq: torch.Tensor,
     tgt_seq: torch.Tensor,
     reg: float = 0.05,
+    iters: int = 1000,   # geomloss.ot.solve の最大反復回数
     monotone: bool = True,
     monotone_penalty: float = 50.0,
     P_entropy: bool = False,
@@ -198,27 +199,20 @@ def sequence_ot_loss_geo(
     return_plan: bool = False,
     return_details: bool = False,
     verbose: bool = False,
-    scaling: float = 0.9,            # GeomLoss の収束精度（POT の numItermax 相当）
-    p: int = 2,
+    scaling: float = 0.9,   # API 互換のために残す（未使用）
+    p: int = 2,             # コスト距離の次数 (cdist の p)
 ):
     """
-    sequence_ot_loss_torch (POT 版) の GeomLoss 版。
+    geomloss.ot.solve を用いた Sinkhorn OT 実装。
 
-    POT との対応関係:
-        reg (= ε)   -> blur = reg ** (1/p)   (GeomLoss の温度パラメータ; ε = blur**p)
-        cost M      -> squared euclidean     (POT と同一)
-        numItermax  -> scaling               (multiscale の細かさ)
-
-    GeomLoss の Sinkhorn は損失スカラーしか返さないため、ここでは
-    `debias=False, potentials=True` で双対ポテンシャル (F, G) を取得し、
-        P_ij = a_i b_j exp((F_i + G_j - M_ij) / reg)
-    で輸送計画 P を再構成する。これ以降の項
-    (ot_cost / monotone / P_entropy / divergence) は POT 版と
-    完全に同じ式で計算するので、違いは「P を誰が解くか」だけになる。
-
+    ot_cost は包絡線定理で勾配が保証される result.value を使う（plan を再構成して
+    微分すると勾配が壊れるため plan は detach）。行列版 value の勾配は数学的に正しい
+    P* の 2 倍だが方向は厳密で、monotone/P_entropy は detach により勾配 0（値のみ）
+    なので、学習信号は全体一律 2 倍されるだけ。penalty 側で調整可。
+    scaling は API 互換のために残すが未使用。iters は最大反復回数。
     戻り値の仕様は sequence_ot_loss_torch と同じ。
     """
-    from geomloss import SamplesLoss
+    from geomloss.ot import solve as geo_solve
 
     # tgt の有効フレームだけ使う
     valid_idx = get_valid_frame_idx(tgt_seq)   # (N,)
@@ -231,11 +225,10 @@ def sequence_ot_loss_geo(
     fake_flat = fake_sub.reshape(T, -1)
     tgt_flat  = tgt_sub.reshape(N, -1)
 
-    # cost matrix: (T, N) = squared euclidean（POT と同一）
-    M = torch.cdist(fake_flat, tgt_flat, p=2) ** 2
+    # cost matrix: (T, N)
+    M = torch.cdist(fake_flat, tgt_flat, p=p) ** p
 
-    # スケール正規化（POT と同一ロジック。s は GeomLoss 側の点群スケールにも使う）
-    s = torch.tensor(1.0, device=M.device, dtype=M.dtype)  # normalize=None のときの既定
+    # スケール正規化
     if normalize == "mean":
         s = M.detach().mean() + 1e-8
         M = M / s
@@ -243,8 +236,7 @@ def sequence_ot_loss_geo(
         s = M.detach().median()
         if s < 1e-6:
             s = M.detach().mean()
-        s = s + 1e-8
-        M = M / s
+        M = M / (s + 1e-8)
     elif normalize == "max":
         s = M.detach().max() + 1e-8
         M = M / s
@@ -253,42 +245,17 @@ def sequence_ot_loss_geo(
     else:
         raise ValueError(f"Unsupported normalize: {normalize}")
 
-
     # 一様分布
     a = torch.ones(T, device=fake_seq.device, dtype=fake_seq.dtype) / T
     b = torch.ones(N, device=fake_seq.device, dtype=fake_seq.dtype) / N
 
-    # ε = reg に合わせる: ε = blur**p => blur = reg**(1/p)
-    blur = float(reg) ** (1.0 / p)
+    # geomloss.ot.solve で OT を解く。
+    result = geo_solve(M, reg=reg, a=a, b=b, max_iter=iters)
+    P = cast(torch.Tensor, result.plan).detach()
 
-    # GeomLoss(tensorized backend) は cost(x, y): (B,Nx,D),(B,Ny,D) -> (B,Nx,Ny) を期待。
-    # POT の M と一致させるため「フル」の squared euclidean を使う
-    # （GeomLoss の p=2 デフォルトは 0.5*|x-y|^2 なので明示的に上書きする）。
-    def squared_cost(x, y):
-        return ((x[:, :, None, :] - y[:, None, :, :]) ** 2).sum(-1)
+    # OT distance term = entropic OT value（biased。debias は ot.solve 非対応）
+    ot_cost = cast(torch.Tensor, result.value)
 
-    sink = SamplesLoss(
-        loss="sinkhorn", p=p, blur=blur, scaling=scaling,
-        cost=squared_cost, debias=False, potentials=True,
-        backend="tensorized",
-    )
-
-    # GeomLoss 内部コスト = |x-y|^2 を「正規化後の M」に一致させるため点群を 1/sqrt(s) でスケール
-    inv = 1.0 / torch.sqrt(s)
-    x = fake_flat * inv
-    y = tgt_flat * inv
-
-    F, G = sink(a, x, b, y)          # F: (T,), G: (N,)
-    F = F.reshape(-1)
-    G = G.reshape(-1)
-
-    # 輸送計画の再構成: P_ij = a_i b_j exp((F_i + G_j - M_ij)/reg)
-    P = a[:, None] * b[None, :] * torch.exp((F[:, None] + G[None, :] - M) / reg)
-    P = cast(torch.Tensor, P)
-    OT_entropy = - torch.sum(P * torch.log(P + 1e-8))
-
-    # OT distance term = <P, M> - reg * entropy（POT 版と同一）
-    ot_cost = torch.sum(P * M) - reg * OT_entropy
     if verbose:
         print("M min/max/mean:", M.min().item(), M.max().item(), M.mean().item())
         print("P min/max/mean:", P.min().item(), P.max().item(), P.mean().item())
@@ -315,16 +282,14 @@ def sequence_ot_loss_geo(
     P_d: Optional[torch.Tensor] = None
     M_d: Optional[torch.Tensor] = None
     if ot_divergence:
-        # POT 版に合わせ、divergence 側の M_d は normalize しない
-        M_d = torch.cdist(fake_flat, fake_flat, p=2) ** 2
+        # 注意: fake-fake の生 OT (biased)。最適計画が恒等行列に退化し値・勾配とも
+        # ほぼ 0 になる。SamplesLoss 相当の Sinkhorn divergence が欲しい場合は
+        # geomloss.ot.solve_sample(..., debias=True) を使う（ot.solve は debias 非対応）。
+        M_d = torch.cdist(fake_flat, fake_flat, p=p) ** p
         b_d = torch.ones(T, device=fake_seq.device, dtype=fake_seq.dtype) / T
-        x_d = fake_flat                       # スケールなし（M_d も未正規化なので整合）
-        F_d, G_d = sink(a, x_d, b_d, x_d)
-        F_d = F_d.reshape(-1)
-        G_d = G_d.reshape(-1)
-        P_d = a[:, None] * b_d[None, :] * torch.exp((F_d[:, None] + G_d[None, :] - M_d) / reg)
-        OT_entropy_d = - torch.sum(P_d * torch.log(P_d + 1e-8))
-        ot_divergence_loss = torch.sum(P_d * M_d) - reg * OT_entropy_d
+        result_d = geo_solve(M_d, reg=reg, a=a, b=b_d, max_iter=iters)
+        P_d = cast(torch.Tensor, result_d.plan).detach()
+        ot_divergence_loss = cast(torch.Tensor, result_d.value)
 
     mono_cost = monotone_penalty * mono_loss
     entorpy_cost = P_entropy_penalty * P_entropy_loss
@@ -379,3 +344,61 @@ def sequence_ot_loss_geo(
         "total": total,
     }
     return total, terms
+
+def sequence_ot_loss(
+    fake_seq: torch.Tensor,
+    tgt_seq: torch.Tensor,
+    solver: str = "pot",            # "pot" (POT/ot.sinkhorn) or "geo" (GeomLoss)
+    reg: float = 0.05,
+    iters: int = 50,                # POT 専用 (numItermax)
+    monotone: bool = True,
+    monotone_penalty: float = 50.0,
+    P_entropy: bool = False,
+    P_entropy_penalty: float = 1.0,
+    ot_divergence: bool = False,
+    ot_divergence_penalty: float = -0.5,
+    normalize: str = "mean",
+    return_plan: bool = False,
+    return_details: bool = False,
+    verbose: bool = False,
+    sinkhorn_type: str = "sinkhorn",  # POT 専用
+    geo_scaling: float = 0.99,        # geo 専用 (ε-scaling の細かさ)
+    geo_p: int = 2,                   # geo 専用 (コスト次数)
+):
+    """
+    POT版 (sequence_ot_loss_torch) と GeomLoss版 (sequence_ot_loss_geo) を
+    solver で切り替えるディスパッチャ。共通の引数だけ受け取り、solver 固有の
+    引数 (POT: iters/sinkhorn_type, geo: geo_scaling/geo_p) は該当する実装に
+    のみ渡す。戻り値の仕様は両実装で共通。
+    """
+    common = dict(
+        reg=reg,
+        monotone=monotone,
+        monotone_penalty=monotone_penalty,
+        P_entropy=P_entropy,
+        P_entropy_penalty=P_entropy_penalty,
+        ot_divergence=ot_divergence,
+        ot_divergence_penalty=ot_divergence_penalty,
+        normalize=normalize,
+        return_plan=return_plan,
+        return_details=return_details,
+        verbose=verbose,
+    )
+    if solver == "geo":
+        # geo は iters/sinkhorn_type を取らない (ε-scaling は geo_scaling で制御)
+        return sequence_ot_loss_geo(
+            fake_seq, tgt_seq,
+            scaling=geo_scaling,
+            p=geo_p,
+            iters=iters,
+            **common,
+        )
+    elif solver == "pot":
+        return sequence_ot_loss_torch(
+            fake_seq, tgt_seq,
+            iters=iters,
+            sinkhorn_type=sinkhorn_type,
+            **common,
+        )
+    else:
+        raise ValueError(f"Unsupported solver: {solver!r} (use 'pot' or 'geo')")

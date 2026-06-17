@@ -51,6 +51,12 @@ class WandbLogger:
         if mode:
             init_kwargs['mode'] = mode
 
+        # Resume into an existing run when an id is provided (same run continuation).
+        wandb_id = getattr(opt, 'wandb_id', None)
+        if wandb_id:
+            init_kwargs['id'] = wandb_id
+            init_kwargs['resume'] = 'allow'
+
         # Allow env override (useful in containers)
         if os.environ.get('WANDB_MODE') and not mode:
             init_kwargs['mode'] = os.environ['WANDB_MODE']

@@ -136,7 +136,7 @@ if __name__ == "__main__":
 	data = load_moving_mnist(str(data_path))
 
 	trans_grid = 3
-	trans_mrange = 0.1
+	trans_mrange = 0.15
 
 	transformer = MovingMNISTBSplineTransformer(
 		trans_mrange=trans_mrange,

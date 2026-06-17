@@ -258,13 +258,19 @@ class Visualizer():
             return
 
         payload = {'epoch': int(epoch)}
+        if global_step is not None:
+            payload['total_iters'] = int(global_step)
         for label, tensor in visuals.items():
             wimg = self._tensor_to_wandb_image(tensor, caption=f"{split}:{label} (epoch={epoch})")
             if wimg is not None:
                 payload[f"{split}/visuals/{label}"] = wimg
 
         if payload:
-            self.wandb.log(payload, step=global_step)
+            # Do not pass an explicit wandb step: multiple logs can share the same
+            # total_iters (e.g. end-of-epoch image + val metrics + lr), and wandb
+            # drops later same-step logs. Let define_metric(step_metric='total_iters')
+            # in the payload drive the x-axis instead.
+            self.wandb.log(payload)
 
     def wandb_log_visuals(self, visuals, epoch, global_step=None, split='train'):
         """Public wrapper for logging visuals to W&B with the same frequency control."""
@@ -339,4 +345,8 @@ class Visualizer():
                     payload[f"{split}/{wandb_key}"] = float(v)
                 except Exception:
                     pass
-            self.wandb.log(payload, step=global_step)
+            # No explicit wandb step: end-of-epoch val/lr logs share the same
+            # total_iters as the epoch's last train/image log. Passing step= here
+            # made wandb silently drop them (monotonic-step rule). total_iters is in
+            # the payload and registered as the step_metric, so the x-axis is kept.
+            self.wandb.log(payload)

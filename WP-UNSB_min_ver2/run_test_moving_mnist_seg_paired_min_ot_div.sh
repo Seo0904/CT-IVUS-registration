@@ -30,7 +30,7 @@ WORKSPACE_DIR="$(dirname "$SCRIPT_DIR")"
 #   exit 1
 # fi
 
-DATE="${1:-20260527_125919}"
+DATE="${1:-20260604_121255}"
 EPOCH="${2:-best}"
 
 # チェックポイントディレクトリ（訓練時と同じパス）
@@ -42,7 +42,7 @@ if [ ! -d "${CHECKPOINTS_DIR}" ]; then
 fi
 
 # 実験名（訓練時と同じ）
-NAME="moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze"
+NAME="moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze_geo"
 
 # データセットパス（訓練時と同じ）
 DATAROOT="${WORKSPACE_DIR}/data/org_data/moving_mnist"
@@ -103,7 +103,7 @@ python3 test.py \
     --dataroot "${DATAROOT}" \
     --dataroot_B "${DATAROOT_B}" \
     --data_file_A mnist_test_seq.npy \
-    --data_file_B transformed_cloze_global.npy \
+    --data_file_B transformed_global.npy \
     --name "${NAME}" \
     --model "${MODEL}" \
     --mode "${MODE}" \
@@ -124,6 +124,9 @@ python3 test.py \
     --seq_ot_monotone_penalty 1.0 \
     --lmda 0.03 \
     --sinkhorn_type "sinkhorn_log" \
+    --seq_ot_solver "geo"\
+    --seq_ot_geo_scaling 0.99\
+    --seq_ot_geo_p 2\
     --gpu_ids ${GPU_IDS} \
     --checkpoints_dir "${CHECKPOINTS_DIR}" \
     --results_dir "${RESULTS_DIR}" \

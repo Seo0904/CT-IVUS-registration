@@ -6,7 +6,7 @@ from .base_model import BaseModel
 from . import networks
 from .patchnce import PatchNCELoss
 import util.util as util
-from .sequence_ot import sequence_ot_loss_torch, get_valid_frame_idx
+from .sequence_ot import sequence_ot_loss_torch, sequence_ot_loss, get_valid_frame_idx
 
 class WPSBModel(BaseModel):
     @staticmethod
@@ -15,7 +15,7 @@ class WPSBModel(BaseModel):
         print("始まるよー")
         """  Configures options specific for SB model
         """
-        parser.add_argument('--mode', type=str, default="sb", choices='(FastCUT, fastcut, sb)')
+        parser.add_argument('--mode', type=str, default="sb", choices=['FastCUT', 'fastcut', 'sb'])
 
         parser.add_argument('--lambda_GAN', type=float, default=1.0, help='weight for GAN loss：GAN(G(X))')
         parser.add_argument('--lambda_NCE', type=float, default=1.0, help='weight for NCE loss: NCE(G(X), X)')
@@ -54,6 +54,14 @@ class WPSBModel(BaseModel):
         parser.add_argument('--seq_ot_normalize', type=str, default='mean',
                     choices=['mean', 'median', 'max', 'none'],
                     help='normalization mode for OT cost matrix')
+        # sequence OT のソルバ選択 (POT / GeomLoss) と geo 専用ハイパラ
+        parser.add_argument('--seq_ot_solver', type=str, default='pot',
+                    choices=['pot', 'geo'],
+                    help='solver for sequence OT: "pot" (ot.sinkhorn) or "geo" (GeomLoss)')
+        parser.add_argument('--seq_ot_geo_scaling', type=float, default=0.99,
+                    help='[geo] epsilon-scaling ratio for GeomLoss Sinkhorn (higher=more accurate/slower)')
+        parser.add_argument('--seq_ot_geo_p', type=int, default=2,
+                    help='[geo] ground cost order p for GeomLoss (eps=blur**p, blur=reg**(1/p))')
         # sequence OT のスナップショット保存頻度など
         parser.add_argument('--seq_ot_snapshot_epoch_interval', type=int, default=10,
                     help='epoch interval to save sequence OT snapshots (train.py)')
@@ -921,9 +929,10 @@ class WPSBModel(BaseModel):
             seq_ot_divergence = 0.0
 
             for i in range(b):
-                ot_val, terms = sequence_ot_loss_torch(
+                ot_val, terms = sequence_ot_loss(
                     fake_seq[i],
                     real_seq[i],
+                    solver=getattr(self.opt, 'seq_ot_solver', 'pot'),
                     reg=self.opt.lmda,
                     iters=getattr(self.opt, 'seq_ot_iters', 50),
                     monotone=getattr(self.opt, 'seq_ot_monotone', True),
@@ -935,6 +944,8 @@ class WPSBModel(BaseModel):
                     normalize=(None if getattr(self.opt, 'seq_ot_normalize', 'mean') == 'none' else getattr(self.opt, 'seq_ot_normalize', 'mean')),
                     return_details=False,
                     sinkhorn_type=getattr(self.opt, 'sinkhorn_type', 'sinkhorn'),
+                    geo_scaling=getattr(self.opt, 'seq_ot_geo_scaling', 0.99),
+                    geo_p=getattr(self.opt, 'seq_ot_geo_p', 2),
                 )
 
                 seq_ot = seq_ot + ot_val
@@ -950,9 +961,10 @@ class WPSBModel(BaseModel):
             self.loss_SB_ENT = seq_ot_entropy / b
             self.loss_SB_DIV = seq_ot_divergence / b
         else:
-            ot_val, terms = sequence_ot_loss_torch(
+            ot_val, terms = sequence_ot_loss(
                 fake_seq,
                 real_seq,
+                solver=getattr(self.opt, 'seq_ot_solver', 'pot'),
                 reg=self.opt.lmda,
                 iters=getattr(self.opt, 'seq_ot_iters', 50),
                 monotone=getattr(self.opt, 'seq_ot_monotone', True),
@@ -964,6 +976,8 @@ class WPSBModel(BaseModel):
                 normalize=(None if getattr(self.opt, 'seq_ot_normalize', 'mean') == 'none' else getattr(self.opt, 'seq_ot_normalize', 'mean')),
                 return_details=False,
                 sinkhorn_type=getattr(self.opt, 'sinkhorn_type', 'sinkhorn'),
+                geo_scaling=getattr(self.opt, 'seq_ot_geo_scaling', 0.99),
+                geo_p=getattr(self.opt, 'seq_ot_geo_p', 2),
             )
 
             loss_seq = ot_val

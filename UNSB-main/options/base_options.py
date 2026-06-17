@@ -81,6 +81,7 @@ class BaseOptions():
         parser.add_argument('--wandb_project', type=str, default='UNSB-main', help='wandb project name')
         parser.add_argument('--wandb_entity', type=str, default=None, help='wandb entity (user or team); optional')
         parser.add_argument('--wandb_run_name', type=str, default=None, help='wandb run name; default uses opt.name')
+        parser.add_argument('--wandb_id', type=str, default=None, help='wandb run id to resume into; if set, logs are appended to that existing run')
         parser.add_argument('--wandb_group', type=str, default=None, help='wandb group name; optional')
         parser.add_argument('--wandb_tags', type=str, default=None, help='comma-separated tags for wandb; optional')
         parser.add_argument('--wandb_mode', type=str, default=None, choices=[None, 'online', 'offline', 'disabled'],

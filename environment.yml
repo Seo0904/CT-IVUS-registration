@@ -1,0 +1,41 @@
+name: ctivus
+channels:
+  - conda-forge
+dependencies:
+  # Dockerfile の python3.12 に合わせる
+  - python=3.12
+  - pip
+  # OS パッケージ libopencv-dev 相当（conda 上での OpenCV 依存を満たすため）
+  - pip:
+      # --- PyTorch (Docker の CUDA 12.1 に合わせて cu121 ビルド) ---
+      - --extra-index-url https://download.pytorch.org/whl/cu121
+      - torch==2.3.1
+      - torchvision==0.18.1
+      # --- visdom は Dockerfile で --no-build-isolation 指定だが pip 通常解決で可 ---
+      - visdom==0.2.4
+      # --- requirements.txt と同一 ---
+      - opencv-python
+      - pydicom==2.4.4
+      - tifffile==2024.5.22
+      - clip==0.2.0
+      - numpy==1.26.4
+      - openai_clip==1.0.1
+      - torch-fidelity
+      - Pillow==10.3.0
+      - tqdm==4.64.1
+      - setuptools==69.5.1
+      - matplotlib==3.9.0
+      - scikit-learn==1.5.0
+      - scipy==1.13.1
+      - jupyter==1.0.0
+      - pandas==2.2.2
+      - japanize-matplotlib==1.1.3
+      - wandb==0.27.0
+      - plotly==5.24.1
+      - openpyxl==3.1.5
+      - seaborn==0.13.2
+      - scikit-image==0.24.0
+      - gryds
+      - dominate==2.9.1
+      - POT==0.9.6.post1
+      - geomloss==0.3.1

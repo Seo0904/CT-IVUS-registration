@@ -1,0 +1,59 @@
+# =============================================================================
+# SynthRAD2023  CT->MRI 生成用 前処理パイプライン config
+#   - CT = 入力(条件) / MR = 生成ターゲット
+#   - 設計根拠は README.md と各ステップのコメントを参照
+# =============================================================================
+
+# ---- 入出力 -----------------------------------------------------------------
+region: brain                               # brain | pelvis
+data_root: /workspace/data/org_data/synthRAD
+out_root:  /workspace/data/dust_box/CT-MRI/preprocessed
+limit: null                                 # 先頭N症例だけ処理(デバッグ用)。null=全件
+
+# ---- 空間系 (CT・MR共通) ----------------------------------------------------
+grid_atol: 0.001            # affine一致判定の許容誤差
+resample_if_mismatch: true  # グリッド不一致時に CT/mask を MR グリッドへ resample
+bg_ct_hu: -1000             # マスク外(背景空気)に入れる CT の固定HU値
+
+# ---- CT(入力) 強度処理 ------------------------------------------------------
+# 固定HU窓でクリップ → 線形に[-1,1]。症例ごとのpercentile/zscoreは使わない。
+hu_window: [-1000, 2000]    # 広窓(実データの骨p99.9: brain~1540/pelvis~1240を内包)
+two_channel: false          # true で 広窓 + 軟部窓 の2ch出力
+soft_window: [-160, 240]    # 軟部窓(2ch時のみ使用)
+
+# ---- MR(ターゲット) 強度処理 -----------------------------------------------
+# N4 -> Nyul(histogram matching, train限定fit) -> マスク内[-1,1] or zscore
+n4:
+  shrink_factor: 4
+  n_iterations: [50, 50, 50, 50]   # fitting level 数 = 要素数
+nyul:
+  output_min: 0.0
+  output_max: 100.0
+  min_percentile: 1.0
+  max_percentile: 99.0
+  percentile_step: 10.0
+  max_fit_images: 40        # fit に使う train 症例の上限(メモリ対策, trainからランダム抽出)
+mr_norm: minmax             # minmax(->[-1,1]) | zscore(マスク内, 後段で±clip_zscoreを[-1,1]へ)
+clip_zscore: 3.0            # mr_norm=zscore のときのクリップ範囲
+
+# ---- 仕上げ -----------------------------------------------------------------
+out_size: null              # [H, W] アスペクト比保持リサイズ(in-plane)。null=原寸
+out_formats: [nifti, h5]    # nifti | h5 を複数指定可
+
+# 真っ黒スライス除去(z軸): CT/MRのどちらかが前景比率<=しきい値 のスライスをペアごと捨てる
+drop_black_frames: true     # false で無効(全スライス保持)
+black_fg_ratio: 0.02        # 前景比率(前景画素/面内画素)<=この値なら真っ黒扱い(サイズ非依存)
+                            # 2%=128²で~327px。MR端の薄い三日月エッジまで除去
+
+# ---- train/val/test 分割 ----------------------------------------------------
+# Nyul の fit は train のみ。val/test は fit 済み landmark を適用するだけ(リーク防止)。
+split:
+  mode: ratio               # ratio | explicit
+  ratios: [0.7, 0.1, 0.2]   # train / val / test
+  seed: 0
+  train: []                 # mode=explicit のとき patientID リストで指定
+  val: []
+  test: []
+
+# ---- QC ---------------------------------------------------------------------
+qc: true                    # 中央3断面オーバレイ + 前後ヒストグラムを保存

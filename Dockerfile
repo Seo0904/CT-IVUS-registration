@@ -11,12 +11,18 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/* && \
     tzdata \
     bash curl fish git git-lfs nano sudo \
     software-properties-common \
-    python3 python3-pip python3-venv python3-dev \
     libopencv-dev && \
+    add-apt-repository -y ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    python3.12 python3.12-venv python3.12-dev && \
     git lfs install && \
     rm -rf /var/lib/apt/lists/*
 
-RUN ln -sf /usr/bin/python3 /usr/bin/python
+# apt の処理が終わった後に python3 / python を 3.12 に向け、pip を 3.12 用に用意する
+RUN ln -sf /usr/bin/python3.12 /usr/bin/python3 && \
+    ln -sf /usr/bin/python3.12 /usr/bin/python && \
+    python3.12 -m ensurepip --upgrade
 
 ARG UID=1000
 ARG USER=hoge

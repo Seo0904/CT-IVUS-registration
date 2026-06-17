@@ -15,7 +15,7 @@ from models import create_model
 from util.visualizer import Visualizer
 
 from util.metrics import MetricsCalculator
-from models.sequence_ot import get_valid_frame_idx, sequence_ot_loss_torch
+from models.sequence_ot import get_valid_frame_idx, sequence_ot_loss_torch, sequence_ot_loss
 import shutil
 import tempfile
 from vgg_sb.evaluations.fid_score import calculate_fid_given_paths
@@ -227,8 +227,9 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10, train
                         b, t, c, h, w = fake_seq.shape
                         # batch_size=1 を想定して先頭のみ
                         for bi in range(min(b, 1)):
-                            ot_val, details = sequence_ot_loss_torch(
+                            ot_val, details = sequence_ot_loss(
                                 fake_seq[bi], real_seq[bi],
+                                    solver=getattr(opt, 'seq_ot_solver', 'pot'),
                                     reg=opt.lmda,
                                     iters=getattr(opt, 'seq_ot_iters', 50),
                                     monotone=getattr(opt, 'seq_ot_monotone', True),
@@ -239,6 +240,8 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10, train
                                     ot_divergence_penalty=getattr(opt, 'seq_ot_divergence_penalty', -0.5),
                                     normalize=(None if getattr(opt, 'seq_ot_normalize', 'mean') == 'none' else getattr(opt, 'seq_ot_normalize', 'mean')),
                                     sinkhorn_type=getattr(opt, 'sinkhorn_type', 'sinkhorn'),
+                                    geo_scaling=getattr(opt, 'seq_ot_geo_scaling', 0.99),
+                                    geo_p=getattr(opt, 'seq_ot_geo_p', 2),
                                 return_details=True,
                             )
                             if details is not None:
@@ -261,8 +264,9 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10, train
                                 if hasattr(model, 'ot_details_saved'):
                                     model.ot_details_saved += 1
                     else:
-                        ot_val, details = sequence_ot_loss_torch(
+                        ot_val, details = sequence_ot_loss(
                             fake_seq, real_seq,
+                            solver=getattr(opt, 'seq_ot_solver', 'pot'),
                             reg=opt.lmda,
                             iters=getattr(opt, 'seq_ot_iters', 50),
                             monotone=getattr(opt, 'seq_ot_monotone', True),
@@ -273,6 +277,8 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10, train
                             ot_divergence_penalty=getattr(opt, 'seq_ot_divergence_penalty', -0.5),
                             normalize=(None if getattr(opt, 'seq_ot_normalize', 'mean') == 'none' else getattr(opt, 'seq_ot_normalize', 'mean')),
                             sinkhorn_type=getattr(opt, 'sinkhorn_type', 'sinkhorn'),
+                            geo_scaling=getattr(opt, 'seq_ot_geo_scaling', 0.99),
+                            geo_p=getattr(opt, 'seq_ot_geo_p', 2),
                             return_details=True,
                         )
                         if details is not None:

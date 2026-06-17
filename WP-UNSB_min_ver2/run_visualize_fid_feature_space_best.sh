@@ -16,8 +16,8 @@ fi
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 WORKSPACE_DIR="$(dirname "$SCRIPT_DIR")"
 
-DATE="${1:-20260527_125919}"
-EPOCH="${2:-320}"
+DATE="${1:-20260604_121255}"
+EPOCH="${2:-best}"
 
 CHECKPOINTS_DIR="${WORKSPACE_DIR}/data/experiment_result/WP-UNSB_min_ver2/moving-mnist/${DATE}"
 if [ ! -d "${CHECKPOINTS_DIR}" ]; then
@@ -26,7 +26,7 @@ if [ ! -d "${CHECKPOINTS_DIR}" ]; then
 fi
 
 # 実験名・データ設定（run_test_moving_mnist_seg_paired_min_ot_div_confirm.sh と同じ）
-NAME="moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze"
+NAME="moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze_geo"
 DATAROOT="${WORKSPACE_DIR}/data/org_data/moving_mnist"
 DATAROOT_B="${WORKSPACE_DIR}/data/preprocessed/bspline_transformed"
 

@@ -16,7 +16,6 @@ WORKSPACE_DIR="$(dirname "$SCRIPT_DIR")"
 # 日付の取得
 DATE=$(date +"%Y%m%d_%H%M%S")
 
-
 # 保存先ディレクトリ（絶対パス）
 RESULT_DIR="${WORKSPACE_DIR}/data/experiment_result/WP-UNSB_min_ver2/moving-mnist/${DATE}"
 
@@ -82,7 +81,7 @@ NUM_TIMESTEPS=5
 # 訓練設定
 N_EPOCHS=400
 N_EPOCHS_DECAY=0
-LR=0.00001
+LR=0.0002
 SAVE_EPOCH_FREQ=10
 PRINT_FREQ=${PRINT_FREQ:-1}
 DISPLAY_FREQ=${DISPLAY_FREQ:-1000}
@@ -107,7 +106,7 @@ Name: ${NAME}
 
 Data:
   Domain A: ${DATAROOT}/mnist_test_seq.npy
-  Domain B: ${DATAROOT_B}/transformed_aligned.npy
+  Domain B: ${DATAROOT_B}/transformed_cloze_global.npy
 
 Model:
   Model: ${MODEL}
@@ -176,10 +175,14 @@ cmd=(python3 train.py
   --lambda_NCE ${LAMBDA_NCE}
   --save_ot_details
   --ot_details_max_samples 10
-  --lmda 0.03
+  --lmda 0.10
+  --seq_ot_iters 500
   --sinkhorn_type "sinkhorn_log"
   --sb_mode seq_ot
-  --seq_ot_normalize "mean"
+  --seq_ot_normalize "none"
+  --seq_ot_solver "geo"
+  --seq_ot_geo_scaling 0.99
+  --seq_ot_geo_p 2
   --seq_ot_p_entropy ${SEQ_OT_P_ENTROPY}
   --seq_ot_p_entropy_penalty ${SEQ_OT_P_ENTROPY_PENALTY}
   --seq_ot_divergence ${SEQ_OT_DIVERGENCE}

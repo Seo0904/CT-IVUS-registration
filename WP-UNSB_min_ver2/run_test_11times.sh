@@ -16,13 +16,9 @@ fi
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 WORKSPACE_DIR="$(dirname "$SCRIPT_DIR")"
 
-DATE="${1:-20260527_125919}"
+DATE="${1:-20260604_121255}"
 CHECKPOINTS_DIR="${WORKSPACE_DIR}/data/experiment_result/WP-UNSB_min_ver2/moving-mnist/${DATE}"
 TEST_SH="${SCRIPT_DIR}/run_test_moving_mnist_seg_paired_min_ot_div_confirm.sh"
-
-# 1 回目: epoch 320
-echo "##### Run 1/11 : epoch=320 -> test_320 #####"
-RESULTS_DIR="${CHECKPOINTS_DIR}/test_320" bash "${TEST_SH}" "${DATE}" 320
 
 # 2-11 回目: epoch best を 10 回
 for i in $(seq 0 9); do
