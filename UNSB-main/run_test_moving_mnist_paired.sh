@@ -14,18 +14,18 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 WORKSPACE_DIR="$(dirname "$SCRIPT_DIR")"
 
 # チェックポイントエポック（引数から取得、デフォルトはlatest）
-EPOCH="${1:-latest}"
+EPOCH="${1:-best}"
 
 # 日付の取得
 DATE=$(date +"%Y%m%d_%H%M%S")
-DATE="20260214_184345"  # 訓練時と同じ日付を使用
+DATE="20260611_003552"  # 訓練時と同じ日付を使用
 
 # データセットパス（絶対パス）
 DATAROOT="${WORKSPACE_DIR}/data/org_data/moving_mnist"
 DATAROOT_B="${WORKSPACE_DIR}/data/preprocessed/bspline_transformed"
 
 # 実験名（訓練時と同じ名前を使用）
-NAME="moving_mnist_paired_sb"
+NAME="moving_mnist_unpaired_sb"
 
 # GPU設定
 GPU_IDS=0
@@ -53,16 +53,16 @@ NUM_TEST=2000          # テストするサンプル数
 PHASE="test"
 
 # チェックポイントディレクトリ（最新の実験）
-CHECKPOINTS_DIR="/workspace/data/experiment_result/UNSB/moving-mnist/20260214_184345"
+CHECKPOINTS_DIR="/workspace/data/experiment_result/UNSB/moving-mnist/20260611_003552"
 
 # 結果保存先（チェックポイントと同じディレクトリ内）
 RESULTS_DIR="${CHECKPOINTS_DIR}/test_results"
 
 echo "======================================"
-echo "Moving MNIST Paired UNSB Testing"
+echo "Moving MNIST Unpaired UNSB Testing"
 echo "======================================"
 echo "Domain A: ${DATAROOT}/mnist_test_seq.npy"
-echo "Domain B: ${DATAROOT_B}/transformed_aligned.npy"
+echo "Domain B: ${DATAROOT_B}/transformed_global.npy"
 echo "Experiment: ${NAME}"
 echo "Epoch: ${EPOCH}"
 echo "Date: ${DATE}"
@@ -78,7 +78,7 @@ python3 test.py \
     --dataroot "${DATAROOT}" \
     --dataroot_B "${DATAROOT_B}" \
     --data_file_A mnist_test_seq.npy \
-    --data_file_B transformed_aligned.npy \
+    --data_file_B transformed_global.npy \
     --name "${NAME}" \
     --model "${MODEL}" \
     --mode "${MODE}" \

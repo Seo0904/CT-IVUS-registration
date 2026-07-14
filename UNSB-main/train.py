@@ -143,8 +143,7 @@ if __name__ == '__main__':
         dataset.set_epoch(epoch)
         for i, (data,data2) in enumerate(zip(dataset,dataset2)):  # inner loop within one epoch
             iter_start_time = time.time()  # timer for computation per iteration
-            if total_iters % opt.print_freq == 0:
-                t_data = iter_start_time - iter_data_time
+            t_data = iter_start_time - iter_data_time
 
             batch_size = data["A"].size(0)
             total_iters += batch_size

@@ -31,3 +31,8 @@ UNSB-main/tmp_fid/
 **/assets/
 data
     
+OT-GAN-main
+frechet_video_distance
+RegistFormer-main
+vid2vid-master
+.cache/

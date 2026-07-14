@@ -30,7 +30,7 @@ WORKSPACE_DIR="$(dirname "$SCRIPT_DIR")"
 #   exit 1
 # fi
 
-DATE="${1:-20260607_041405}"
+DATE="${1:-20260619_150314}"
 EPOCH="${2:-best}"
 
 # チェックポイントディレクトリ（訓練時と同じパス）
@@ -42,7 +42,7 @@ if [ ! -d "${CHECKPOINTS_DIR}" ]; then
 fi
 
 # 実験名（訓練時と同じ）
-NAME="moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze_geo_gan"
+NAME="moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze_geo_debias_nmono"
 
 # データセットパス（訓練時と同じ）
 DATAROOT="${WORKSPACE_DIR}/data/org_data/moving_mnist"

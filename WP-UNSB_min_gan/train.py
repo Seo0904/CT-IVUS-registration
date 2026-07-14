@@ -243,6 +243,7 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10, train
                                     geo_scaling=getattr(opt, 'seq_ot_geo_scaling', 0.99),
                                     geo_p=getattr(opt, 'seq_ot_geo_p', 2),
                                     unbalanced=getattr(opt, 'seq_ot_unbalanced', None),
+                                    debias=getattr(opt, 'seq_ot_debias', False),
                                 return_details=True,
                             )
                             if details is not None:
@@ -281,6 +282,7 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10, train
                             geo_scaling=getattr(opt, 'seq_ot_geo_scaling', 0.99),
                             geo_p=getattr(opt, 'seq_ot_geo_p', 2),
                             unbalanced=getattr(opt, 'seq_ot_unbalanced', None),
+                            debias=getattr(opt, 'seq_ot_debias', False),
                             return_details=True,
                         )
                         if details is not None:

@@ -211,6 +211,9 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10, train
             orig_dir = model.ot_details_dir
             model.ot_details_dir = base_dir
 
+            # netD 特徴空間の t-SNE 用に (case, CT, MR) を貯める
+            tsne_samples = []
+
             with torch.no_grad():
                 for i, data in enumerate(dataset):
                     if i >= num_samples:
@@ -227,8 +230,13 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10, train
                         b, t, c, h, w = fake_seq.shape
                         # batch_size=1 を想定して先頭のみ
                         for bi in range(min(b, 1)):
+                            # 学習(compute_G_loss)と同じ D 特徴コスト空間で可視化するため、
+                            # cost_space が flatten/random_patch のときは netD 特徴記述子を渡す。
+                            # pixel モードでは (None, None) となり従来どおり pixel コストになる。
+                            ff, tf = model.seq_ot_descriptors(fake_seq[bi], real_seq[bi])
                             ot_val, details = sequence_ot_loss(
                                 fake_seq[bi], real_seq[bi],
+                                    fake_feat=ff, tgt_feat=tf,
                                     solver=getattr(opt, 'seq_ot_solver', 'pot'),
                                     reg=opt.lmda,
                                     iters=getattr(opt, 'seq_ot_iters', 50),
@@ -243,6 +251,8 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10, train
                                     geo_scaling=getattr(opt, 'seq_ot_geo_scaling', 0.99),
                                     geo_p=getattr(opt, 'seq_ot_geo_p', 2),
                                     unbalanced=getattr(opt, 'seq_ot_unbalanced', None),
+                                    metric=getattr(opt, 'seq_ot_metric', 'l2'),
+                                    feat_norm=getattr(opt, 'seq_ot_feat_norm', 'none'),
                                 return_details=True,
                             )
                             if details is not None:
@@ -264,9 +274,21 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10, train
                                 model._save_ot_details(details, real_A_seq=real_A_seq, real_B_seq=real_B_seq, fake_B_seq=fake_B_seq)
                                 if hasattr(model, 'ot_details_saved'):
                                     model.ot_details_saved += 1
+
+                                # netD 特徴空間 t-SNE 用に CT(real_A)/MR(real_B) を退避
+                                if getattr(opt, 'save_feature_tsne', False) and real_A_seq is not None:
+                                    case = data.get('case_A', [f'{split}_{i}'])
+                                    case = case[bi] if isinstance(case, (list, tuple)) else str(case)
+                                    tsne_samples.append({
+                                        'case': str(case),
+                                        'ct': real_A_seq.detach(),
+                                        'mr': real_B_seq.detach(),
+                                    })
                     else:
+                        ff, tf = model.seq_ot_descriptors(fake_seq, real_seq)
                         ot_val, details = sequence_ot_loss(
                             fake_seq, real_seq,
+                            fake_feat=ff, tgt_feat=tf,
                             solver=getattr(opt, 'seq_ot_solver', 'pot'),
                             reg=opt.lmda,
                             iters=getattr(opt, 'seq_ot_iters', 50),
@@ -281,6 +303,8 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10, train
                             geo_scaling=getattr(opt, 'seq_ot_geo_scaling', 0.99),
                             geo_p=getattr(opt, 'seq_ot_geo_p', 2),
                             unbalanced=getattr(opt, 'seq_ot_unbalanced', None),
+                            metric=getattr(opt, 'seq_ot_metric', 'l2'),
+                            feat_norm=getattr(opt, 'seq_ot_feat_norm', 'none'),
                             return_details=True,
                         )
                         if details is not None:
@@ -299,6 +323,14 @@ def save_ot_snapshots(model, opt, epoch, num_samples=3, epoch_interval=10, train
                             model._save_ot_details(details, real_A_seq=real_A_seq, real_B_seq=real_B_seq, fake_B_seq=fake_B_seq)
                             if hasattr(model, 'ot_details_saved'):
                                 model.ot_details_saved += 1
+
+            # netD 特徴空間の t-SNE を 1 枚出力（split/epoch ごと）
+            if getattr(opt, 'save_feature_tsne', False) and len(tsne_samples) > 0 \
+                    and hasattr(model, 'save_D_feature_tsne'):
+                tsne_path = os.path.join(base_dir, f'tsne_Dfeat_{split}_epoch{epoch:04d}.png')
+                model.save_D_feature_tsne(
+                    tsne_samples, tsne_path,
+                    title=f'netD feature space (t-SNE)  {split} epoch{epoch}')
 
             # 元のディレクトリに戻す
             model.ot_details_dir = orig_dir

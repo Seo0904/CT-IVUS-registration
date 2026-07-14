@@ -184,18 +184,27 @@ class NLayerDiscriminator_ncsn(nn.Module):
             act=nn.LeakyReLU(0.2),
         )
 
-    def forward(self, input,t_emb,input2=None):
-        """Standard forward."""
+    def forward(self, input,t_emb,input2=None,return_feat=False):
+        """Standard forward.
+
+        return_feat=True のとき (logits, feat) を返す。feat は final_conv の
+        1つ前の出力 (penultimate 特徴, [B, ndf*8, H', W'])。seq-OT を D 特徴空間で
+        計算するときに、adv 用 logits と同じ forward から特徴を取り出して二度 forward を
+        避けるために使う。デフォルト False で従来どおり logits のみ返す（後方互換）。
+        """
         t_emb = self.t_embed(t_emb)
         if input2 is not None:
             out = torch.cat([input,input2],dim=1)
         else:
-            
+
             out = input
         for layer in self.model_main:
             out = layer(out,t_emb)
-            
-        return self.final_conv(out)
+
+        logits = self.final_conv(out)
+        if return_feat:
+            return logits, out
+        return logits
     
 class PixelDiscriminator(nn.Module):
     """Defines a 1x1 PatchGAN discriminator (pixelGAN)"""

@@ -33,7 +33,7 @@ PAD = 4            # px — gap between frames
 
 def load_seq_frames(folder: Path, seq_id: int) -> list[np.ndarray]:
     """seqNのフレームをframe番号順に読み込む。"""
-    pattern = re.compile(rf"^seq{seq_id}_frame_(\d+)\.png$")
+    pattern = re.compile(rf"^seq{seq_id}_frame_?(\d+)\.png$")
     entries = []
     for p in folder.iterdir():
         m = pattern.match(p.name)
@@ -116,7 +116,7 @@ def visualize_seq(images_dir: Path, seq_id: int) -> Image.Image:
 def main():
     parser = argparse.ArgumentParser(description="テスト結果シーケンス可視化")
     parser.add_argument("images_dir", type=Path, nargs='?',
-                         default="/workspace/data/experiment_result/WP-UNSB_min_gan/moving-mnist/20260619_150314/test_results/moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze_geo_debias_nmono/test_best/images"
+                         default="/workspace/data/experiment_result/UNSB/moving-mnist/20260611_003552/test_results/moving_mnist_unpaired_sb/test_best/images"
                         ,help="test結果のimagesディレクトリ (fake_5/real/real_B を含むフォルダ)")
     parser.add_argument("--out_dir", type=Path, default=None,
                         help="出力先ディレクトリ (デフォルト: images_dir/../seq_vis)")
@@ -135,7 +135,7 @@ def main():
     seq_ids = sorted({
         int(m.group(1))
         for p in ref_folder.iterdir()
-        if (m := re.match(r"^seq(\d+)_frame_\d+\.png$", p.name))
+        if (m := re.match(r"^seq(\d+)_frame_?\d+\.png$", p.name))
     })
 
     if args.max_seq is not None:

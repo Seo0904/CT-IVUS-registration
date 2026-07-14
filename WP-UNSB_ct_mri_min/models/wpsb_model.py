@@ -141,6 +141,8 @@ class WPSBModel(BaseModel):
             self.loss_names += ['SB_P', 'SB_U', 'SB_ENT', 'SB_DIV']
             # gradient of OT loss w.r.t. fake_seq
             self.loss_names += ['SB_GRAD_NORM', 'SB_GRAD_MIN', 'SB_GRAD_MAX']
+            # gradient of monotone(U) term only w.r.t. fake_seq（U からの勾配だけを切り出してログ）
+            self.loss_names += ['SB_U_GRAD_NORM', 'SB_U_GRAD_MIN', 'SB_U_GRAD_MAX']
             # gradient of total G loss w.r.t. netG parameters (after backward)
             self.loss_names += ['NETG_GRAD_NORM', 'NETG_GRAD_MIN', 'NETG_GRAD_MAX']
         if self.isTrain and self.opt.lambda_GAN > 0.0:
@@ -220,6 +222,9 @@ class WPSBModel(BaseModel):
         self.loss_SB_GRAD_NORM = 0.0
         self.loss_SB_GRAD_MIN = 0.0
         self.loss_SB_GRAD_MAX = 0.0
+        self.loss_SB_U_GRAD_NORM = 0.0
+        self.loss_SB_U_GRAD_MIN = 0.0
+        self.loss_SB_U_GRAD_MAX = 0.0
         self.loss_NETG_GRAD_NORM = 0.0
         self.loss_NETG_GRAD_MIN = 0.0
         self.loss_NETG_GRAD_MAX = 0.0
@@ -1132,6 +1137,20 @@ class WPSBModel(BaseModel):
                         self.loss_SB_GRAD_NORM = 0.0
                         self.loss_SB_GRAD_MIN  = 0.0
                         self.loss_SB_GRAD_MAX  = 0.0
+                    # monotone(U) 項だけの勾配を切り出してログ（penalty 込みの実寄与）。
+                    # self.loss_SB_U は mono_cost(=penalty*mono_loss) のテンソル。グラフに繋がっていれば微分可。
+                    mono_term = self.loss_SB_U
+                    gu = None
+                    if torch.is_tensor(mono_term) and mono_term.requires_grad:
+                        gu = torch.autograd.grad(mono_term, fake_seq, retain_graph=True, allow_unused=True)[0]
+                    if gu is not None:
+                        self.loss_SB_U_GRAD_NORM = gu.norm().item()
+                        self.loss_SB_U_GRAD_MIN  = gu.min().item()
+                        self.loss_SB_U_GRAD_MAX  = gu.max().item()
+                    else:
+                        self.loss_SB_U_GRAD_NORM = 0.0
+                        self.loss_SB_U_GRAD_MIN  = 0.0
+                        self.loss_SB_U_GRAD_MAX  = 0.0
                 except Exception:
                     pass
 

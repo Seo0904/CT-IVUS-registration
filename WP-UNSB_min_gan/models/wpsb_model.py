@@ -66,6 +66,10 @@ class WPSBModel(BaseModel):
                     help='[geo] unbalanced OT marginal KL penalty rho. None=balanced (default). '
                          'Pass a positive float (e.g. 60) to relax marginals and drop unmatched frames. '
                          'rho は raw コストスケール基準なので seq_ot_normalize=none 前提で調整すること')
+        parser.add_argument('--seq_ot_debias', type=util.str2bool, nargs='?', const=True, default=False,
+                    help='[geo] use solve_sample(debias=True) Sinkhorn divergence as ot_cost '
+                         '(gen->tgt と gen->gen を1回の計算で分離ログ; 手作り seq_ot_divergence は不要になる). '
+                         'コストは sqeuclidean 固定で seq_ot_normalize は無視される')
         # sequence OT のスナップショット保存頻度など
         parser.add_argument('--seq_ot_snapshot_epoch_interval', type=int, default=10,
                     help='epoch interval to save sequence OT snapshots (train.py)')
@@ -118,8 +122,13 @@ class WPSBModel(BaseModel):
         if self.isTrain and self.opt.sb_mode in ['seq_ot', 'both']:
             # SB_P: OT distance, SB_U: monotone regularization, SB_ENT: entropy regularization, SB_DIV: divergence regularization
             self.loss_names += ['SB_P', 'SB_U', 'SB_ENT', 'SB_DIV']
+            # debias 時のみ: SB_GT (gen->tgt biased), SB_GG (gen->gen self) を別々にログ
+            if getattr(self.opt, 'seq_ot_debias', False):
+                self.loss_names += ['SB_GT', 'SB_GG']
             # gradient of OT loss w.r.t. fake_seq
             self.loss_names += ['SB_GRAD_NORM', 'SB_GRAD_MIN', 'SB_GRAD_MAX']
+            # gradient of monotone(U) term only w.r.t. fake_seq（U からの勾配だけを切り出してログ）
+            self.loss_names += ['SB_U_GRAD_NORM', 'SB_U_GRAD_MIN', 'SB_U_GRAD_MAX']
             # gradient of total G loss w.r.t. netG parameters (after backward)
             self.loss_names += ['NETG_GRAD_NORM', 'NETG_GRAD_MIN', 'NETG_GRAD_MAX']
         if self.isTrain and self.opt.lambda_GAN > 0.0:
@@ -194,6 +203,9 @@ class WPSBModel(BaseModel):
         self.loss_SB_GRAD_NORM = 0.0
         self.loss_SB_GRAD_MIN = 0.0
         self.loss_SB_GRAD_MAX = 0.0
+        self.loss_SB_U_GRAD_NORM = 0.0
+        self.loss_SB_U_GRAD_MIN = 0.0
+        self.loss_SB_U_GRAD_MAX = 0.0
         self.loss_NETG_GRAD_NORM = 0.0
         self.loss_NETG_GRAD_MIN = 0.0
         self.loss_NETG_GRAD_MAX = 0.0
@@ -578,6 +590,9 @@ class WPSBModel(BaseModel):
         self.loss_SB_U = 0.0
         self.loss_SB_ENT = 0.0
         self.loss_SB_DIV = 0.0
+        if getattr(self.opt, 'seq_ot_debias', False):
+            self.loss_SB_GT = 0.0
+            self.loss_SB_GG = 0.0
         if self.opt.lambda_SB > 0.0:
             #ver1 同様、各シーケンスごとに (T,C,H,W) で OT を計算する
             if self.opt.sb_mode == 'seq_ot':
@@ -676,6 +691,10 @@ class WPSBModel(BaseModel):
         P_entropy_loss = details.get('P_entropy_loss')
         ot_divergence_loss = details.get('ot_divergence_loss')
         total = details.get('total')
+        # debias 時のみ: gen→tgt / gen→gen / divergence の分離値
+        gen_tgt_cost = details.get('gen_tgt_cost')
+        gen_gen_cost = details.get('gen_gen_cost')
+        divergence_cost = details.get('divergence_cost')
 
         # 追加で保存したいシーケンス（形状は (T, C, H, W) を想定）
         real_A_arr = None
@@ -707,6 +726,9 @@ class WPSBModel(BaseModel):
             mono_loss=float(mono_loss.detach().cpu().item()) if mono_loss is not None else None,
             P_entropy_loss=float(P_entropy_loss.detach().cpu().item()) if P_entropy_loss is not None else None,
             ot_divergence_loss=float(ot_divergence_loss.detach().cpu().item()) if ot_divergence_loss is not None else None,
+            gen_tgt_cost=float(gen_tgt_cost.detach().cpu().item()) if gen_tgt_cost is not None else None,
+            gen_gen_cost=float(gen_gen_cost.detach().cpu().item()) if gen_gen_cost is not None else None,
+            divergence_cost=float(divergence_cost.detach().cpu().item()) if divergence_cost is not None else None,
             total=float(total.detach().cpu().item()) if total is not None else None,
             real_A=real_A_arr,
             real_B=real_B_arr,
@@ -732,6 +754,12 @@ class WPSBModel(BaseModel):
                     f.write(f'P_entropy_loss (raw): {float(P_entropy_loss.detach().cpu().item()):.6f}\n')
                 if ot_divergence_loss is not None:
                     f.write(f'ot_divergence_loss (raw): {float(ot_divergence_loss.detach().cpu().item()):.6f}\n')
+                if gen_tgt_cost is not None:
+                    f.write(f'gen_tgt_cost (gen->tgt biased OT): {float(gen_tgt_cost.detach().cpu().item()):.6f}\n')
+                if gen_gen_cost is not None:
+                    f.write(f'gen_gen_cost (gen->gen self OT): {float(gen_gen_cost.detach().cpu().item()):.6f}\n')
+                if divergence_cost is not None:
+                    f.write(f'divergence_cost (Sinkhorn divergence = ot_cost): {float(divergence_cost.detach().cpu().item()):.6f}\n')
                 if total is not None:
                     f.write(f'total (distance + mono + entropy + divergence): {float(total.detach().cpu().item()):.6f}\n')
                 if (ot_cost is not None) or (mono_cost is not None) or (entropy_cost is not None) or (ot_divergence_cost is not None) or (mono_loss is not None) or (P_entropy_loss is not None) or (ot_divergence_loss is not None) or (total is not None):
@@ -957,6 +985,8 @@ class WPSBModel(BaseModel):
             seq_ot_reg = 0.0
             seq_ot_entropy = 0.0
             seq_ot_divergence = 0.0
+            seq_ot_gen_tgt = 0.0
+            seq_ot_gen_gen = 0.0
 
             for i in range(b):
                 ot_val, terms = sequence_ot_loss(
@@ -977,6 +1007,7 @@ class WPSBModel(BaseModel):
                     geo_scaling=getattr(self.opt, 'seq_ot_geo_scaling', 0.99),
                     geo_p=getattr(self.opt, 'seq_ot_geo_p', 2),
                     unbalanced=getattr(self.opt, 'seq_ot_unbalanced', None),
+                    debias=getattr(self.opt, 'seq_ot_debias', False),
                 )
 
                 seq_ot = seq_ot + ot_val
@@ -985,12 +1016,19 @@ class WPSBModel(BaseModel):
                     seq_ot_reg = seq_ot_reg + terms['mono_cost']
                     seq_ot_entropy = seq_ot_entropy + terms['entropy_cost']
                     seq_ot_divergence = seq_ot_divergence + terms['ot_divergence_cost']
+                    if terms.get('gen_tgt_cost') is not None:
+                        seq_ot_gen_tgt = seq_ot_gen_tgt + terms['gen_tgt_cost']
+                    if terms.get('gen_gen_cost') is not None:
+                        seq_ot_gen_gen = seq_ot_gen_gen + terms['gen_gen_cost']
 
             loss_seq = seq_ot / b
             self.loss_SB_P = seq_ot_dist / b
             self.loss_SB_U = seq_ot_reg / b
             self.loss_SB_ENT = seq_ot_entropy / b
             self.loss_SB_DIV = seq_ot_divergence / b
+            # debias 時のみ: gen→tgt / gen→gen を別々にログ（loss には未使用）
+            self.loss_SB_GT = seq_ot_gen_tgt / b
+            self.loss_SB_GG = seq_ot_gen_gen / b
         else:
             ot_val, terms = sequence_ot_loss(
                 fake_seq,
@@ -1010,6 +1048,7 @@ class WPSBModel(BaseModel):
                 geo_scaling=getattr(self.opt, 'seq_ot_geo_scaling', 0.99),
                 geo_p=getattr(self.opt, 'seq_ot_geo_p', 2),
                 unbalanced=getattr(self.opt, 'seq_ot_unbalanced', None),
+                debias=getattr(self.opt, 'seq_ot_debias', False),
             )
 
             loss_seq = ot_val
@@ -1018,6 +1057,11 @@ class WPSBModel(BaseModel):
                 self.loss_SB_U = terms['mono_cost']
                 self.loss_SB_ENT = terms['entropy_cost']
                 self.loss_SB_DIV = terms['ot_divergence_cost']
+                # debias 時のみ: gen→tgt / gen→gen を別々にログ（loss には未使用）
+                if terms.get('gen_tgt_cost') is not None:
+                    self.loss_SB_GT = terms['gen_tgt_cost']
+                if terms.get('gen_gen_cost') is not None:
+                    self.loss_SB_GG = terms['gen_gen_cost']
 
         # sequence OT だけを単体で backward したときに、fake_seq に
         # 実際に勾配が流れているかを直接確認するデバッグ用コード。
@@ -1063,6 +1107,20 @@ class WPSBModel(BaseModel):
                         self.loss_SB_GRAD_NORM = 0.0
                         self.loss_SB_GRAD_MIN  = 0.0
                         self.loss_SB_GRAD_MAX  = 0.0
+                    # monotone(U) 項だけの勾配を切り出してログ（penalty 込みの実寄与）。
+                    # self.loss_SB_U は mono_cost(=penalty*mono_loss) のテンソル。グラフに繋がっていれば微分可。
+                    mono_term = self.loss_SB_U
+                    gu = None
+                    if torch.is_tensor(mono_term) and mono_term.requires_grad:
+                        gu = torch.autograd.grad(mono_term, fake_seq, retain_graph=True, allow_unused=True)[0]
+                    if gu is not None:
+                        self.loss_SB_U_GRAD_NORM = gu.norm().item()
+                        self.loss_SB_U_GRAD_MIN  = gu.min().item()
+                        self.loss_SB_U_GRAD_MAX  = gu.max().item()
+                    else:
+                        self.loss_SB_U_GRAD_NORM = 0.0
+                        self.loss_SB_U_GRAD_MIN  = 0.0
+                        self.loss_SB_U_GRAD_MAX  = 0.0
                 except Exception:
                     pass
 

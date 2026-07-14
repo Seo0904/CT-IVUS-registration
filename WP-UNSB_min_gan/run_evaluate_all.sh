@@ -30,7 +30,7 @@ WORKSPACE_DIR="$(dirname "$SCRIPT_DIR")"
 #   exit 1
 # fi
 
-DATE="${1:-20260607_041405}"
+DATE="${1:-20260619_150314}"
 EPOCH="${2:-best}"
 
 # チェックポイントディレクトリ（訓練時と同じパス）
@@ -42,7 +42,7 @@ if [ ! -d "${CHECKPOINTS_DIR}" ]; then
 fi
 
 # 実験名（訓練時と同じ）
-NAME="moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze_geo_gan"
+NAME="moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze_geo_debias_nmono"
 
 # データセットパス（訓練時と同じ）
 DATAROOT="${WORKSPACE_DIR}/data/org_data/moving_mnist"
@@ -83,6 +83,13 @@ NUM_TIMESTEPS=5
 NUM_TEST=1000   # test系列数（1000系列 = 20,000フレーム）
 PHASE="${PHASE:-test}"   # 既定test: 画質=穴なしGT / matching・輸送行列=穴あきcloze(N≠M対応の評価)
 
+# ---- 追加評価オプション（env で上書き可）----
+FVD_BACKEND="${FVD_BACKEND:-i3d}"                                         # i3d=論文比較可能 / r3d18=相対比較(torchvision)
+FVD_I3D_PATH="${FVD_I3D_PATH:-/workspace/.cache/fvd/i3d_torchscript.pt}"  # i3d 重み(無ければ自動で r3d18 にフォールバック)
+EVAL_FVD_VIZ="${EVAL_FVD_VIZ:-1}"                                         # FVD 特徴空間の可視化+最近傍対応(1=出す)
+EVAL_PAIRED="${EVAL_PAIRED:-1}"                                           # ペア指標 SSIM/PSNR/L1/L2/LPIPS を計算するか(0でスキップ)
+EVAL_TXT_NAME="${EVAL_TXT_NAME:-evaluation_metrics_fvd.txt}"                  # 保存する可読テキスト名
+
 # 結果保存先
 RESULTS_DIR="${CHECKPOINTS_DIR}/test_results"
 
@@ -106,6 +113,11 @@ cd "${SCRIPT_DIR}"
 python3 evaluate_all.py \
     --eval_kid_subset 900 \
     --eval_match_file_B "${EVAL_MATCH_FILE_B:-transformed_cloze_global.npy}" \
+    --eval_fvd_backend "${FVD_BACKEND}" \
+    --eval_fvd_i3d "${FVD_I3D_PATH}" \
+    --eval_fvd_viz ${EVAL_FVD_VIZ} \
+    --eval_paired ${EVAL_PAIRED} \
+    --eval_txt_name "${EVAL_TXT_NAME}" \
     --dataroot "${DATAROOT}" \
     --dataroot_B "${DATAROOT_B}" \
     --data_file_A mnist_test_seq.npy \

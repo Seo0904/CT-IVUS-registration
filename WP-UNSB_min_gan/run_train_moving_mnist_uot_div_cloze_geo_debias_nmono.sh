@@ -4,10 +4,15 @@ if [ -z "${BASH_VERSION:-}" ]; then
 fi
 
 #
-# Moving MNIST Paired Dataset用 UNSB 訓練スクリプト
-# 
+# Moving MNIST Paired Dataset用 UNSB 訓練スクリプト (geo + debias + 単調性なし 版)
+#
 # ドメインA: オリジナルMoving MNIST
 # ドメインB: B-spline変換後のMoving MNIST
+#
+# run_train_..._uot_div_cloze_geo_debias.sh と同設定だが、sequence OT の
+# 単調性ペナルティ (monotone) を無効化した版。
+#   - --seq_ot_monotone False で monotone ブロックごとスキップ（計算もしない）
+#   - 他は debias 版と同じ: unbalanced(rho=60) / GAN なし / solve_sample(debias) の Sinkhorn divergence
 
 # スクリプトのディレクトリを取得
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -27,7 +32,7 @@ DATAROOT="${WORKSPACE_DIR}/data/org_data/moving_mnist"
 DATAROOT_B="${WORKSPACE_DIR}/data/preprocessed/bspline_transformed"
 
 # 実験名（保存先の最後のフォルダ名として使用）
-NAME="moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze_geo_gan"
+NAME="moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze_geo_debias_nmono"
 
 # GPU設定
 GPU_IDS=0
@@ -38,7 +43,7 @@ WANDB_PROJECT=${WANDB_PROJECT:-WP-UNSB_min_gan}
 WANDB_ENTITY=${WANDB_ENTITY:-}
 WANDB_MODE=${WANDB_MODE:-online}
 WANDB_GROUP=${WANDB_GROUP:-moving-mnist}
-WANDB_TAGS=${WANDB_TAGS:-moving-mnist,WP-UNSB_min_gan}
+WANDB_TAGS=${WANDB_TAGS:-moving-mnist,WP-UNSB_min_gan,debias}
 WANDB_IMAGE_FREQ=${WANDB_IMAGE_FREQ:-1000}
 WANDB_RUN_NAME=${WANDB_RUN_NAME:-${NAME}_${DATE}}
 
@@ -59,17 +64,24 @@ CROP_SIZE=64
 BATCH_SIZE=4
 
 # 損失の重み
-LAMBDA_GAN=1.0   # >0 で adversarial loss (Discriminator) を有効化
+LAMBDA_GAN=0  # >0 で adversarial loss (Discriminator) を有効化
 LAMBDA_GAN_SEQ=0
 LAMBDA_SB=1.0
 LAMBDA_NCE=0
+
+# sequence OT (monotone): False で単調性ペナルティを無効化（この版は単調性なし）
+SEQ_OT_MONOTONE=${SEQ_OT_MONOTONE:-False}
+SEQ_OT_MONOTONE_PENALTY=${SEQ_OT_MONOTONE_PENALTY:-0.0}
 
 # sequence OT (P entropy)
 SEQ_OT_P_ENTROPY=${SEQ_OT_P_ENTROPY:-0}
 SEQ_OT_P_ENTROPY_PENALTY=${SEQ_OT_P_ENTROPY_PENALTY:-0.0}
 
-# sequence OT (divergence)
-SEQ_OT_DIVERGENCE=${SEQ_OT_DIVERGENCE:-1}
+# sequence OT (debias): True で divergence を ot_cost に。手作り divergence は不要
+SEQ_OT_DEBIAS=${SEQ_OT_DEBIAS:-1}
+
+# sequence OT (divergence): debias=True 時は内部で自動スキップされるので 0 にする
+SEQ_OT_DIVERGENCE=${SEQ_OT_DIVERGENCE:-0}
 SEQ_OT_DIVERGENCE_PENALTY=${SEQ_OT_DIVERGENCE_PENALTY:--0.5}
 
 # sequence OT (unbalanced): rho を渡すと unbalanced OT になる。空にすると balanced
@@ -90,7 +102,7 @@ PRINT_FREQ=${PRINT_FREQ:-1}
 DISPLAY_FREQ=${DISPLAY_FREQ:-1000}
 
 echo "======================================"
-echo "Moving MNIST Paired UNSB Training"
+echo "Moving MNIST Paired UNSB Training (geo + debias + nmono)"
 echo "======================================"
 echo "Domain A: ${DATAROOT}/mnist_test_seq.npy"
 echo "Domain B: ${DATAROOT_B}/transformed_cloze_global.npy"
@@ -133,9 +145,12 @@ Loss Weights:
   Lambda GAN: ${LAMBDA_GAN}
   Lambda SB: ${LAMBDA_SB}
   Lambda NCE: ${LAMBDA_NCE}
+  Seq OT Monotone: ${SEQ_OT_MONOTONE}
+  Seq OT Monotone Penalty: ${SEQ_OT_MONOTONE_PENALTY}
+  Seq OT Debias: ${SEQ_OT_DEBIAS}
   Seq OT P Entropy: ${SEQ_OT_P_ENTROPY}
   Seq OT P Entropy Penalty: ${SEQ_OT_P_ENTROPY_PENALTY}
-  Seq OT Divergence: ${SEQ_OT_DIVERGENCE}
+  Seq OT Divergence: ${SEQ_OT_DIVERGENCE} (debias=True 時は自動スキップ)
   Seq OT Divergence Penalty: ${SEQ_OT_DIVERGENCE_PENALTY}
   Seq OT Unbalanced (rho): ${SEQ_OT_UNBALANCED:-none(balanced)}
 
@@ -185,6 +200,7 @@ cmd=(python3 train.py
   --sb_mode seq_ot
   --seq_ot_normalize "none"
   --seq_ot_solver "geo"
+  --seq_ot_debias ${SEQ_OT_DEBIAS}
   --seq_ot_geo_scaling 0.99
   --seq_ot_geo_p 2
   --seq_ot_p_entropy ${SEQ_OT_P_ENTROPY}
@@ -196,7 +212,8 @@ cmd=(python3 train.py
   --lr ${LR}
   --print_freq ${PRINT_FREQ}
   --display_freq ${DISPLAY_FREQ}
-  --seq_ot_monotone_penalty 1.0
+  --seq_ot_monotone ${SEQ_OT_MONOTONE}
+  --seq_ot_monotone_penalty ${SEQ_OT_MONOTONE_PENALTY}
   --save_epoch_freq ${SAVE_EPOCH_FREQ}
   --checkpoints_dir ${RESULT_DIR}
   --gpu_ids ${GPU_IDS}

@@ -39,6 +39,12 @@ class WPSBModel(BaseModel):
         # sequence OT の割当て情報を保存・可視化するためのデバッグ用オプション
         parser.add_argument('--save_ot_details', action='store_true', help='save sequence OT transport plan/details for debugging')
         parser.add_argument('--ot_details_max_samples', type=int, default=10, help='max number of OT detail samples to save')
+        # netD 特徴空間（距離を測っている空間）の t-SNE 可視化。ot_details と同じタイミングで出す。
+        parser.add_argument('--save_feature_tsne', action='store_true',
+                            help='save t-SNE of netD penultimate feature space at ot-details timing '
+                                 '(shape=modality CT/MR, color=pair/case)')
+        parser.add_argument('--tsne_perplexity', type=float, default=30.0,
+                            help='t-SNE perplexity (auto-capped to (N-1)/3 for small N)')
         # sequence OT 用ハイパーパラメータ
         parser.add_argument('--seq_ot_iters', type=int, default=50, help='number of Sinkhorn iterations for sequence OT')
         parser.add_argument('--seq_ot_monotone', type=util.str2bool, nargs='?', const=True, default=True,
@@ -68,6 +74,51 @@ class WPSBModel(BaseModel):
                     help='[geo] unbalanced OT marginal KL penalty rho. None=balanced (default). '
                          'Pass a positive float (e.g. 60) to relax marginals and drop unmatched frames. '
                          'rho は raw コストスケール基準なので seq_ot_normalize=none 前提で調整すること')
+        parser.add_argument('--seq_ot_debias', type=util.str2bool, nargs='?', const=True, default=False,
+                    help='[geo] use solve_sample(debias=True) Sinkhorn divergence as ot_cost '
+                         '(gen->tgt と gen->gen を1回の計算で分離ログ; 手作り seq_ot_divergence は不要になる). '
+                         'コストは sqeuclidean 固定で seq_ot_normalize は無視される')
+        # sequence OT のコスト空間: 画像ピクセル / Discriminator 特徴空間
+        parser.add_argument('--seq_ot_cost_space', type=str, default='pixel',
+                    choices=['pixel', 'flatten', 'random_patch'],
+                    help='space for sequence-OT frame cost. '
+                         'pixel=image L2 (current). '
+                         'flatten=netD penultimate feature flattened to one vector per frame. '
+                         'random_patch=one random spatial location of netD feature per step '
+                         '(unbiased lightweight approx of flatten).')
+        # ===== OT-GAN (OT-GAN-main) 由来の学習法オプション =====
+        parser.add_argument('--n_gen', type=int, default=0,
+                    help='OT-GAN流のG/D排他交互更新。0=無効(毎step G/D両方更新=従来)。'
+                         'N>0 で (step+1)%%N==0 の step は D のみ、それ以外は G のみ更新。'
+                         '更新比率は G:D=(N-1):1（N=3で2:1、論文の3:1にするならN=4）。'
+                         '参考コードの if i + 1 %% n_gen == 0 は優先順位バグ(Dが一度も更新'
+                         'されない)なので、意図どおり (i+1) %% n_gen == 0 で実装している')
+        parser.add_argument('--lr_D', type=float, default=None,
+                    help='Dの学習率。未指定(None)=--lrと同じ(従来)。OT-GAN準拠はG/Dとも3e-4')
+        parser.add_argument('--D_loss_mode', type=str, default='gan', choices=['gan', 'ot'],
+                    help='Dのloss。gan=real/fake判定のpatchGAN(従来)。'
+                         'ot=D特徴空間のseq-OT Sinkhorn divergenceを最大化'
+                         '(OT-GANのminibatch energy distance critic相当。'
+                         'divergence = OT(f,r) - 0.5*OT(f,f) - 0.5*OT(r,r) なので'
+                         'クロス項-自己項の構造がOT-GANのcritic目的と同等)。'
+                         'ot は seq_ot_cost_space=flatten/random_patch が必須で、'
+                         'seq_ot_feat_norm=l2 を強く推奨(発散防止)')
+        parser.add_argument('--seq_ot_metric', type=str, default='l2', choices=['l2', 'cosine'],
+                    help='seq-OTコスト行列の距離。l2=cdist^p(従来)。'
+                         'cosine=1 - x̂ŷᵀ(OT-GAN準拠、値域[0,2]、内部でL2正規化)。'
+                         'geo debias(solve_sample)経路はsqeuclidean固定のため、cosine指定時は'
+                         '特徴を単位球面化して計算(½‖x−y‖²=1−x·y なので係数2倍を除き等価)')
+        parser.add_argument('--seq_ot_feat_norm', type=str, default='none', choices=['none', 'l2'],
+                    help='コスト計算前にフレーム記述子をL2正規化(単位球面化)する。'
+                         'コストスケールがO(1)に固定され reg(lmda) がコスト空間に依らず安定。'
+                         'D_loss_mode=ot ではDが特徴ノルムを膨らませてOT距離を稼ぐ'
+                         '自明解を防ぐため l2 を強く推奨')
+        # D の更新を lambda_GAN から切り離して制御する。
+        # auto: lambda_GAN>0 もしくは D 特徴 OT を使うとき D を学習（従来挙動を内包）
+        parser.add_argument('--update_D', type=str, default='auto',
+                    choices=['auto', 'always', 'never'],
+                    help='whether to train the discriminator. auto=train if lambda_GAN>0 or '
+                         'seq_ot_cost_space uses netD features; always/never to force.')
         # sequence OT のスナップショット保存頻度など
         parser.add_argument('--seq_ot_snapshot_epoch_interval', type=int, default=10,
                     help='epoch interval to save sequence OT snapshots (train.py)')
@@ -113,6 +164,17 @@ class WPSBModel(BaseModel):
             default=1.0,
             help='weight for sequence OT loss'
         )
+        # UNSB の SB ドリフト項 (tau·‖Xt - fake_B‖²) を独立に加える重み。
+        # これは「ただの MSE」ではなく Schrödinger Bridge 損失の第2項(SDE 離散化の
+        # 遷移コスト)で、係数 tau を保持する。sb_mode='both' では compute_original_sb_loss
+        # 内に同じ項が既にあるため、both で lambda_MSE>0 にすると二重加算になる(警告を出す)。
+        # 既定 0.0 で従来挙動(後方互換)。seq_ot モードに UNSB 同様のドリフト項を入れたいとき用。
+        parser.add_argument('--lambda_MSE', type=float, default=0.0,
+                    help='weight for the UNSB SB drift term. loss_G += lambda_MSE*tau*mean(||Xt-fake_B||^2). '
+                         'lambda_MSE=1 gives the same contribution as the term inside '
+                         'compute_original_sb_loss (both). The logged "MSE" is the raw '
+                         'mean((Xt-fake)^2) (without tau). 0=off(default). Note: sb_mode=both '
+                         'already contains this term, so lambda_MSE>0 with both double-counts it.')
         parser.set_defaults(pool_size=0)  # no image pooling
 
         opt, _ = parser.parse_known_args()
@@ -133,24 +195,72 @@ class WPSBModel(BaseModel):
     def __init__(self, opt):
         BaseModel.__init__(self, opt)
 
+        # --- D 学習の派生フラグ(loss_names の登録判定に使うので先に決める)---
+        self.d_loss_mode = getattr(self.opt, 'D_loss_mode', 'gan')
+        # seq-OT を D 特徴空間で計算するか(=D を loss に使うか)の派生フラグ
+        self.use_D_feat_ot = getattr(opt, 'seq_ot_cost_space', 'pixel') in ('flatten', 'random_patch')
+        if self.isTrain and self.d_loss_mode == 'ot':
+            if not self.use_D_feat_ot:
+                raise ValueError(
+                    "--D_loss_mode ot は D 特徴空間の OT を D の loss にするため、"
+                    "--seq_ot_cost_space flatten か random_patch が必須です "
+                    f"(現在: {getattr(opt, 'seq_ot_cost_space', 'pixel')})。"
+                    "pixel では D のパラメータが loss に入らず勾配が流れません。"
+                )
+            if getattr(opt, 'seq_ot_feat_norm', 'none') == 'none':
+                print(
+                    "[warn] D_loss_mode=ot かつ seq_ot_feat_norm=none: D が特徴ノルムを"
+                    "膨らませるだけで OT 距離を無限に稼げる自明解があり発散しやすい。"
+                    "OT-GAN 同様 --seq_ot_feat_norm l2 (単位球面化) を強く推奨します。"
+                )
+        # D を学習するか。auto=lambda_GAN>0 もしくは D 特徴 OT を使うとき学習。
+        _update_D = getattr(opt, 'update_D', 'auto')
+        if _update_D == 'always':
+            self.should_train_D = True
+        elif _update_D == 'never':
+            self.should_train_D = False
+        else:  # auto
+            self.should_train_D = (opt.lambda_GAN > 0.0) or self.use_D_feat_ot
+
         # specify the training losses you want to print out.
         # The training/test scripts will call <BaseModel.get_current_losses>
         self.loss_names = ['SB']
+        # UNSB ドリフト MSE 項(lambda_MSE>0 のとき loss にもログにも載せる)
+        if self.isTrain and getattr(self.opt, 'lambda_MSE', 0.0) > 0.0:
+            self.loss_names += ['MSE']
+            if self.opt.sb_mode == 'both':
+                print('[warn] lambda_MSE>0 かつ sb_mode=both: '
+                      'compute_original_sb_loss 内の tau*||Xt-fake||^2 と二重加算になります。'
+                      'seq_ot/none で使うか、both では lambda_MSE=0 を推奨。')
         if self.isTrain and self.opt.sb_mode in ['seq_ot', 'both']:
             # SB_P: OT distance, SB_U: monotone regularization, SB_ENT: entropy regularization, SB_DIV: divergence regularization
             self.loss_names += ['SB_P', 'SB_U', 'SB_ENT', 'SB_DIV']
+            # 診断ログ: M_SUM(コスト行列の総和), M_DIAG(対角=単位行列1の位置の和=trace), P_IDENT_ERR(P と I の誤差)
+            self.loss_names += ['M_SUM', 'M_DIAG', 'P_IDENT_ERR']
+            # debias 時のみ: SB_GT (gen->tgt biased), SB_GG (gen->gen self) を別々にログ
+            if getattr(self.opt, 'seq_ot_debias', False):
+                self.loss_names += ['SB_GT', 'SB_GG']
             # gradient of OT loss w.r.t. fake_seq
             self.loss_names += ['SB_GRAD_NORM', 'SB_GRAD_MIN', 'SB_GRAD_MAX']
+            # gradient of monotone(U) term only w.r.t. fake_seq（U からの勾配だけを切り出してログ）
+            self.loss_names += ['SB_U_GRAD_NORM', 'SB_U_GRAD_MIN', 'SB_U_GRAD_MAX']
             # gradient of total G loss w.r.t. netG parameters (after backward)
             self.loss_names += ['NETG_GRAD_NORM', 'NETG_GRAD_MIN', 'NETG_GRAD_MAX']
+            # netG パラメータへの勾配を GAN由来 / SB由来 に分離してログ（grad_stats_freq 間引き）
+            self.loss_names += ['NETG_GRAD_GAN_NORM', 'NETG_GRAD_SB_NORM']
         if self.isTrain and self.opt.lambda_GAN > 0.0:
             # adversarial loss:
-            #   G_GAN  : G が D を騙そうとするロス
-            #   D      : Discriminator 全体ロス (= (D_real + D_fake)/2)
-            #   D_real : real_B を本物と見抜くロス
-            #   D_fake : fake_B を偽物と見抜くロス
-            self.loss_names += ['G_GAN', 'D', 'D_real', 'D_fake']
-            # gradient of D loss w.r.t. netD parameters (after backward) = adv 勾配のみ由来
+            #   G_GAN  : G が D を騙そうとするロス（lambda_GAN>0 のときだけ G に流れる）
+            self.loss_names += ['G_GAN']
+        # D が実際に学習されるとき(should_train_D)は lambda_GAN=0 でも D ログを出す。
+        # D特徴OT(cost_space=flatten/random_patch)で D を学習するケースを含む。
+        if self.isTrain and self.should_train_D:
+            #   D      : Discriminator 全体ロス
+            #            gan: (D_real + D_fake)/2 / ot: -SinkhornDiv(feat_fake, feat_real)
+            #   D_real : real_B を本物と見抜くロス (gan モードのみ)
+            #   D_fake : fake_B を偽物と見抜くロス (gan モードのみ)
+            self.loss_names += ['D'] if self.d_loss_mode == 'ot' else ['D', 'D_real', 'D_fake']
+            # gradient of D loss w.r.t. netD parameters (after backward) = D ロスのみ由来
             self.loss_names += ['NETD_GRAD_NORM', 'NETD_GRAD_MIN', 'NETD_GRAD_MAX']
         self.visual_names = ['real_A','real_A_noisy', 'fake_B', 'real_B']
         if self.opt.phase == 'test':
@@ -179,7 +289,7 @@ class WPSBModel(BaseModel):
 
         if self.isTrain:
             self.netD = networks.define_D(opt.output_nc, opt.ndf, opt.netD, opt.n_layers_D, opt.normD, opt.init_type, opt.init_gain, opt.no_antialias, self.gpu_ids, opt)
-            
+
             # define loss functions
             self.criterionGAN = networks.GANLoss(opt.gan_mode).to(self.device)
             self.criterionNCE = []
@@ -195,9 +305,11 @@ class WPSBModel(BaseModel):
             # 数 step スキップされるため、安定値付近(2^13)から開始して warmup を省く。
             self.amp_netg = bool(getattr(opt, 'amp_netg', False))
             self.scaler = GradScaler(init_scale=2.0 ** 13, enabled=self.amp_netg)
-            # adversarial loss を使うときだけ Discriminator 用 optimizer を作る
-            if self.opt.lambda_GAN > 0.0:
-                self.optimizer_D = torch.optim.AdamW(self.netD.parameters(), lr=opt.lr, betas=(opt.beta1, opt.beta2))
+            # adversarial loss を使うとき、もしくは D 特徴空間 OT で D を学習するとき optimizer を作る
+            if self.should_train_D:
+                # D の学習率は --lr_D で個別指定可（未指定なら G と同じ opt.lr）
+                _lr_D = opt.lr_D if getattr(opt, 'lr_D', None) is not None else opt.lr
+                self.optimizer_D = torch.optim.AdamW(self.netD.parameters(), lr=_lr_D, betas=(opt.beta1, opt.beta2))
                 self.optimizers.append(self.optimizer_D)
             if self.opt.sb_mode == "both":
                 self.netE = networks.define_D(opt.output_nc*4, opt.ndf, opt.netD, opt.n_layers_D, opt.normD,
@@ -220,9 +332,16 @@ class WPSBModel(BaseModel):
         self.loss_SB_GRAD_NORM = 0.0
         self.loss_SB_GRAD_MIN = 0.0
         self.loss_SB_GRAD_MAX = 0.0
+        self.loss_SB_U_GRAD_NORM = 0.0
+        self.loss_SB_U_GRAD_MIN = 0.0
+        self.loss_SB_U_GRAD_MAX = 0.0
         self.loss_NETG_GRAD_NORM = 0.0
+        self.loss_NETG_GRAD_GAN_NORM = 0.0
+        self.loss_NETG_GRAD_SB_NORM = 0.0
         self.loss_NETG_GRAD_MIN = 0.0
         self.loss_NETG_GRAD_MAX = 0.0
+        # UNSB ドリフト MSE 項(ログ取得が先に来ても落ちないよう初期化)
+        self.loss_MSE = 0.0
         # adversarial losses: 毎ステップ更新されるが、ログ取得が先に来ても落ちないよう初期化
         self.loss_G_GAN = 0.0
         self.loss_D = 0.0
@@ -319,13 +438,28 @@ class WPSBModel(BaseModel):
         # forward
         self.forward()
         self.netG.train()
-        if self.opt.lambda_GAN > 0.0:
+        if self.should_train_D:
             self.netD.train()
         if self.opt.sb_mode == 'both':
             self.netE.train()
 
-        # update D: fake_B を偽物(False)、real_B を本物(True)と見抜くよう学習
-        if self.opt.lambda_GAN > 0.0:
+        # OT-GAN 流の G/D 排他交互更新 (--n_gen)。
+        # n_gen=0(既定)は従来どおり毎 step D→G の両方を更新。
+        # n_gen=N>0 では (step+1)%N==0 の step は D のみ、それ以外は G のみ更新する
+        # (OT-GAN train.py の意図 (i+1)%n_gen==0 と同じ。比率 G:D=(N-1):1)。
+        n_gen = getattr(self.opt, 'n_gen', 0)
+        _step = getattr(self, '_gd_step', 0)
+        self._gd_step = _step + 1
+        if n_gen and n_gen > 0:
+            update_D_now = self.should_train_D and ((_step + 1) % n_gen == 0)
+            update_G_now = not update_D_now
+        else:
+            update_D_now = self.should_train_D
+            update_G_now = True
+
+        # update D: gan=fake_B を偽物、real_B を本物と見抜くよう学習 /
+        #           ot =D 特徴空間の Sinkhorn divergence を最大化
+        if update_D_now:
             self.set_requires_grad(self.netD, True)
             self.optimizer_D.zero_grad()
             self.loss_D = self.compute_D_loss()
@@ -351,6 +485,10 @@ class WPSBModel(BaseModel):
             self._log_grad_stats('optimize_after_E_backward')
             self.optimizer_E.step()
 
+        # n_gen>0 の D-only step はここで終了（G は次 step 以降で更新）
+        if not update_G_now:
+            return
+
         # update G
         self.set_requires_grad(self.netD, False)
         if self.opt.sb_mode == 'both':
@@ -360,6 +498,21 @@ class WPSBModel(BaseModel):
         # if self.opt.netF == 'mlp_sample':
         #     self.optimizer_F.zero_grad()
         self.loss_G = self.compute_G_loss()
+        # GAN由来 / SB由来 の netG パラメータ勾配ノルムを分離ログ。
+        # 追加 backward が要るので grad_stats_freq 間引き。retain_graph=True で本 backward は温存。
+        # autograd.grad は .grad を汚さない（=optimizer step には影響しない）。AMP前の真の(unscaled)勾配。
+        if self.opt.sb_mode in ['seq_ot', 'both']:
+            _freq = getattr(self.opt, 'grad_stats_freq', 100)
+            if _freq > 0 and getattr(self, '_grad_stats_step', 0) % _freq == 0:
+                _params = [p for p in self.netG.parameters() if p.requires_grad]
+                def _grad_norm_of(_loss):
+                    if not torch.is_tensor(_loss) or not _loss.requires_grad:
+                        return 0.0
+                    gs = torch.autograd.grad(_loss, _params, retain_graph=True, allow_unused=True)
+                    return float(torch.sqrt(sum((g.detach() ** 2).sum() for g in gs if g is not None)))
+                self.loss_NETG_GRAD_GAN_NORM = _grad_norm_of(self.loss_G_GAN)
+                _sb_term = (self.opt.lambda_SB * self.loss_SB) if torch.is_tensor(self.loss_SB) else 0.0
+                self.loss_NETG_GRAD_SB_NORM = _grad_norm_of(_sb_term)
         if self.amp_netg:
             # netG が fp16 のため勾配を scale して backward、step 前に unscale
             self.scaler.scale(self.loss_G).backward()
@@ -541,7 +694,9 @@ class WPSBModel(BaseModel):
                     setattr(self, "fake_"+str(t+1), Xt_1)
                     
     def compute_D_loss(self):
-        """Calculate GAN loss for the discriminator"""
+        """Calculate loss for the discriminator (gan: patchGAN / ot: OT-GAN流 divergence 最大化)"""
+        if self.d_loss_mode == 'ot':
+            return self.compute_D_loss_ot()
         bs =  self.real_A.size(0)
         # fake_B は (B,T,C,H,W) の場合があるので、D には (B*T,C,H,W) を渡す
         fake = self.fake_B.detach()
@@ -565,6 +720,77 @@ class WPSBModel(BaseModel):
         self.loss_D_real = loss_D_real.mean()
         
         self.loss_D = (self.loss_D_fake + self.loss_D_real) * 0.5
+        return self.loss_D
+
+    def compute_D_loss_ot(self):
+        """OT-GAN 流の D loss: D 特徴空間の seq-OT Sinkhorn divergence を最大化する。
+
+        loss_D = -mean_seq SinkhornDiv(feat(fake_B.detach), feat(real_B))
+        divergence = OT(f,r) - 0.5*OT(f,f) - 0.5*OT(r,r) なので、OT-GAN critic の
+        「クロス項を最大化しつつ自己項(同一分布内の距離)を最小化する」構造と同等。
+        G 側は既存の lambda_SB × seq-OT(flatten/random_patch) が同じ距離を最小化する
+        側に回る (OT-GAN の loss.backward(mone) による勾配上昇に対応)。
+        monotone / P_entropy / 手作り divergence は G のフレーム順序づけ用の項なので
+        D 側では使わず、距離(divergence)のみを最大化する。
+        """
+        fake = self.fake_B.detach()
+        real = self.real_B
+
+        # netD に勾配が流れる状態で fake/real 両方の penultimate 特徴を取る
+        fake_use, fake_meta = self._flatten_seq_for_net(fake)
+        real_use, real_meta = self._flatten_seq_for_net(real)
+        _, feat_fake = self.netD(fake_use, self.time_idx, return_feat=True)
+        _, feat_real = self.netD(real_use, self.time_idx, return_feat=True)
+        feat_fake_seq = self._restore_feat_seq(feat_fake, fake_meta)
+        feat_real_seq = self._restore_feat_seq(feat_real, real_meta)
+
+        # (B, T, ...) に揃える（4D 入力は 1 シーケンス扱い）
+        if fake.dim() == 4:
+            fake_seq = fake.unsqueeze(0)
+            real_seq = real.unsqueeze(0)
+            feat_fake_seq = feat_fake_seq.unsqueeze(0)
+            feat_real_seq = feat_real_seq.unsqueeze(0)
+        else:
+            fake_seq = fake
+            real_seq = real
+
+        # random_patch は G 側と同様、fake/real 共通の空間位置を 1 つ選ぶ
+        hw = None
+        if getattr(self.opt, 'seq_ot_cost_space', 'pixel') == 'random_patch':
+            fh, fw = feat_fake_seq.shape[-2], feat_fake_seq.shape[-1]
+            hw = (int(torch.randint(fh, size=(1,))), int(torch.randint(fw, size=(1,))))
+
+        b = fake_seq.shape[0]
+        div_total = 0.0
+        for i in range(b):
+            ff = self._seq_descriptor(feat_fake_seq[i], hw)
+            tf = self._seq_descriptor(feat_real_seq[i], hw)
+            # debias=True 固定 (Sinkhorn divergence)。valid_idx 判定のため画像も渡す。
+            ot_val, _ = sequence_ot_loss(
+                fake_seq[i],
+                real_seq[i],
+                fake_feat=ff,
+                tgt_feat=tf,
+                solver='geo',
+                reg=self.opt.lmda,
+                iters=getattr(self.opt, 'seq_ot_iters', 50),
+                monotone=False,
+                P_entropy=False,
+                ot_divergence=False,
+                normalize=None,
+                geo_scaling=getattr(self.opt, 'seq_ot_geo_scaling', 0.99),
+                geo_p=getattr(self.opt, 'seq_ot_geo_p', 2),
+                unbalanced=getattr(self.opt, 'seq_ot_unbalanced', None),
+                debias=True,
+                metric=getattr(self.opt, 'seq_ot_metric', 'l2'),
+                feat_norm=getattr(self.opt, 'seq_ot_feat_norm', 'none'),
+            )
+            div_total = div_total + ot_val
+
+        # D は divergence を最大化する（OT-GAN の gradient ascent 相当で符号反転）
+        self.loss_D = -(div_total / b)
+        self.loss_D_real = 0.0
+        self.loss_D_fake = 0.0
         return self.loss_D
 
     def compute_E_loss(self):
@@ -601,18 +827,46 @@ class WPSBModel(BaseModel):
         fake = self.fake_B
         std = torch.rand(size=[1]).item() * self.opt.std
         
+        # D 特徴空間 OT 用の特徴記述子（pixel モードでは None）。
+        # adv 有効時は GAN loss と同じ forward から特徴を取り出して二度 forward を避ける。
+        # seq-OT が実際に走るときだけ特徴を取る（無駄な D forward を避ける）。
+        need_feat = (self.use_D_feat_ot and self.opt.lambda_SB > 0.0
+                     and self.opt.sb_mode in ('seq_ot', 'both'))
+        self._feat_fake_seq = None
+        self._feat_tgt_seq = None
         if self.opt.lambda_GAN > 0.0:
             # D には 4D テンソルを渡す
-            fake_use, _ = self._flatten_seq_for_net(fake)
-            pred_fake = self.netD(fake_use, self.time_idx)
+            fake_use, fake_meta = self._flatten_seq_for_net(fake)
+            if need_feat:
+                pred_fake, feat_fake = self.netD(fake_use, self.time_idx, return_feat=True)
+                self._feat_fake_seq = self._restore_feat_seq(feat_fake, fake_meta)
+            else:
+                pred_fake = self.netD(fake_use, self.time_idx)
             self.loss_G_GAN = self.criterionGAN(pred_fake, True).mean() * self.opt.lambda_GAN
         else:
             self.loss_G_GAN = 0.0
+            # adv を使わないが D 特徴 OT を使う場合は、特徴取得のため1回だけ forward
+            if need_feat:
+                fake_use, fake_meta = self._flatten_seq_for_net(fake)
+                _, feat_fake = self.netD(fake_use, self.time_idx, return_feat=True)
+                self._feat_fake_seq = self._restore_feat_seq(feat_fake, fake_meta)
+        # target 特徴は固定なので no_grad（detach）で取得
+        if need_feat:
+            with torch.no_grad():
+                real_use, real_meta = self._flatten_seq_for_net(self.real_B)
+                _, feat_tgt = self.netD(real_use, self.time_idx, return_feat=True)
+                self._feat_tgt_seq = self._restore_feat_seq(feat_tgt, real_meta)
         self.loss_SB = 0
         self.loss_SB_P = 0.0
         self.loss_SB_U = 0.0
         self.loss_SB_ENT = 0.0
         self.loss_SB_DIV = 0.0
+        self.loss_M_SUM = 0.0
+        self.loss_M_DIAG = 0.0
+        self.loss_P_IDENT_ERR = 0.0
+        if getattr(self.opt, 'seq_ot_debias', False):
+            self.loss_SB_GT = 0.0
+            self.loss_SB_GG = 0.0
         if self.opt.lambda_SB > 0.0:
             #ver1 同様、各シーケンスごとに (T,C,H,W) で OT を計算する
             if self.opt.sb_mode == 'seq_ot':
@@ -655,7 +909,17 @@ class WPSBModel(BaseModel):
         else:
             loss_NCE_both = self.loss_NCE
         
-        self.loss_G = self.loss_G_GAN + self.opt.lambda_SB*self.loss_SB + self.opt.lambda_NCE*loss_NCE_both
+        # UNSB の SB ドリフト項 (tau·‖Xt - fake_B‖²) を独立に加える。
+        # ログ用の self.loss_MSE は生の mean((Xt-fake)^2)(tau が小さく tau*mean だと
+        # 0 に丸まって監視しづらいため)。UNSB と同じ tau 係数は loss_G 側で掛け、
+        # lambda_MSE=1 で compute_original_sb_loss(both)内の同項と同じ寄与になる。
+        self.loss_MSE = 0.0
+        if getattr(self.opt, 'lambda_MSE', 0.0) > 0.0:
+            self.loss_MSE = torch.mean((self.real_A_noisy - self.fake_B) ** 2)
+
+        self.loss_G = (self.loss_G_GAN + self.opt.lambda_SB*self.loss_SB
+                       + self.opt.lambda_NCE*loss_NCE_both
+                       + self.opt.lambda_MSE*self.opt.tau*self.loss_MSE)
         return self.loss_G
 
 
@@ -994,6 +1258,191 @@ class WPSBModel(BaseModel):
         b, t, c, h, w = meta
         return x.reshape(b, t, c, h, w)
 
+    def _restore_feat_seq(self, feat, meta):
+        """netD penultimate 特徴 (B*T, C', H', W') を (B, T, C', H', W') に戻す。
+
+        meta は _flatten_seq_for_net の戻り値（画像基準の (b,t,c,h,w) か None）。
+        特徴は空間サイズ C',H',W' が画像と異なるので b,t だけ流用し、残りは feat の形を使う。
+        meta=None（4D 入力）のときは feat 自体を 1 シーケンス (T,C',H',W') とみなしてそのまま返す。
+        """
+        if meta is None:
+            return feat
+        b, t = meta[0], meta[1]
+        c, h, w = feat.shape[1], feat.shape[2], feat.shape[3]
+        return feat.reshape(b, t, c, h, w)
+
+    def _seq_descriptor(self, feat_seq, hw):
+        """1 シーケンスの penultimate 特徴 (T, C', H', W') をフレーム記述子 (T, D) に縮約する。
+
+        flatten      : 全空間位置を 1 ベクトルに -> (T, C'*H'*W')
+        random_patch : 指定の空間位置 (h,w) の特徴のみ -> (T, C')  (hw は fake/tgt 共通=対応位置)
+        """
+        mode = getattr(self.opt, 'seq_ot_cost_space', 'pixel')
+        if mode == 'flatten':
+            return feat_seq.reshape(feat_seq.shape[0], -1)
+        elif mode == 'random_patch':
+            h, w = hw
+            return feat_seq[:, :, h, w]
+        else:
+            raise ValueError(f"_seq_descriptor called with cost_space={mode}")
+
+    def _extract_D_feat_seq(self, seq_bt):
+        """1 シーケンス seq_bt: (T,C,H,W) を netD に通して penultimate 特徴
+        (T,C',H',W') を返す。use_D_feat_ot=False（pixel モード）のときは None。
+
+        学習時 compute_G_loss と同じ手順（_flatten_seq_for_net -> netD(return_feat)
+        -> _restore_feat_seq）で特徴を取り出すためのヘルパー。可視化
+        (save_ot_snapshots) で学習と同じ D 特徴コストを再現するのに使う。
+        no_grad 前提の呼び出しを想定。
+        """
+        if not getattr(self, 'use_D_feat_ot', False):
+            return None
+        flat, meta = self._flatten_seq_for_net(seq_bt)   # (T,C,H,W) -> (T,C,H,W), meta=None
+        _, feat = self.netD(flat, self.time_idx, return_feat=True)
+        return self._restore_feat_seq(feat, meta)        # meta=None -> feat をそのまま (T,C',H',W')
+
+    def seq_ot_descriptors(self, fake_seq_bt, real_seq_bt):
+        """fake/target の 1 シーケンス (T,C,H,W) から seq-OT 用フレーム記述子
+        (ff, tf) = (T,D),(T,D) を返す。pixel モードや use_D_feat_ot=False では
+        (None, None) を返し、呼び出し側は従来どおり pixel コストにフォールバックする。
+
+        random_patch のときは compute_sequence_ot_loss と同様、fake/tgt 共通の
+        空間位置 hw を1つ選んで両者に使う（=対応位置）。
+        """
+        if not getattr(self, 'use_D_feat_ot', False):
+            return None, None
+        fake_feat_seq = self._extract_D_feat_seq(fake_seq_bt)
+        tgt_feat_seq = self._extract_D_feat_seq(real_seq_bt)
+        hw = None
+        if getattr(self.opt, 'seq_ot_cost_space', 'pixel') == 'random_patch':
+            fh, fw = fake_feat_seq.shape[-2], fake_feat_seq.shape[-1]
+            hw = (int(torch.randint(fh, size=(1,))), int(torch.randint(fw, size=(1,))))
+        ff = self._seq_descriptor(fake_feat_seq, hw)
+        tf = self._seq_descriptor(tgt_feat_seq, hw)
+        return ff, tf
+
+    def _tsne_frame_descriptors(self, seq_bt):
+        """1 シーケンス (T,C,H,W) を netD penultimate 特徴のフレーム記述子 (T, D) numpy にする。
+
+        seq_ot_descriptors と違い cost_space に依らず常に flatten で取り出す
+        （= D が距離を測っている penultimate 特徴空間そのものを可視化するため）。
+        netD が無い場合は None。no_grad 前提。
+        """
+        if not hasattr(self, 'netD'):
+            return None
+        flat, meta = self._flatten_seq_for_net(seq_bt)          # (T,C,H,W), meta=None
+        _, feat = self.netD(flat, self.time_idx, return_feat=True)
+        feat = self._restore_feat_seq(feat, meta)               # (T,C',H',W')
+        return feat.reshape(feat.shape[0], -1).detach().cpu().numpy()
+
+    def save_D_feature_tsne(self, samples, save_path, title=None, draw_pair_links=True):
+        """netD の特徴空間を t-SNE で 2D 可視化して PNG 保存する。
+
+        samples: list of dict
+            {'case': str, 'ct': (T,C,H,W) tensor(real_A), 'mr': (T,C,H,W) tensor(real_B)}
+        可視化ルール:
+            形 (marker)  = モダリティ  CT='^'(三角), MR='o'(丸)
+            色 (color)   = ペア/患者(case)  … 同色の三角と丸が同一患者の CT/MR ペア
+            細い線        = 同一 case・同一フレーム idx の CT-MR ペアを結ぶ（対応の可視化）
+        学習では pair 情報を使っていないが、D が CT/MR を分離しつつ同一患者を
+        近くに寄せているか（=ペアが分かるか）を目で確認するための図。
+        """
+        if not hasattr(self, 'netD'):
+            print('[tsne] netD が無いためスキップします')
+            return
+        try:
+            import numpy as np
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
+            from matplotlib.lines import Line2D
+            from sklearn.decomposition import PCA
+            from sklearn.manifold import TSNE
+        except Exception as e:
+            print(f'[tsne] 依存ライブラリの読み込みに失敗: {e}')
+            return
+
+        feats, mod, pair, frame = [], [], [], []   # mod: 0=CT,1=MR / pair: case idx / frame: slice idx
+        case_names = []
+        with torch.no_grad():
+            for s in samples:
+                ct = s.get('ct'); mr = s.get('mr')
+                if ct is None or mr is None:
+                    continue
+                ct_d = self._tsne_frame_descriptors(ct)
+                mr_d = self._tsne_frame_descriptors(mr)
+                if ct_d is None or mr_d is None:
+                    continue
+                pid = len(case_names)
+                case_names.append(str(s.get('case', pid)))
+                for d, m in ((ct_d, 0), (mr_d, 1)):
+                    for t in range(d.shape[0]):
+                        feats.append(d[t]); mod.append(m); pair.append(pid); frame.append(t)
+
+        if len(feats) < 3:
+            print(f'[tsne] 点が少なすぎるためスキップ (N={len(feats)})')
+            return
+
+        X = np.asarray(feats, dtype=np.float32)
+        mod = np.asarray(mod); pair = np.asarray(pair); frame = np.asarray(frame)
+        N = X.shape[0]
+
+        # 高次元なので PCA で前処理してから t-SNE
+        n_pca = int(min(50, N - 1, X.shape[1]))
+        if n_pca >= 2:
+            X = PCA(n_components=n_pca, random_state=0).fit_transform(X)
+        perp = float(max(2.0, min(getattr(self.opt, 'tsne_perplexity', 30.0), (N - 1) / 3.0)))
+        emb = TSNE(n_components=2, perplexity=perp, init='pca',
+                   learning_rate='auto', random_state=0).fit_transform(X)
+
+        n_cases = len(case_names)
+        cmap = plt.get_cmap('tab20' if n_cases > 10 else 'tab10')
+        colors = [cmap(i % cmap.N) for i in range(n_cases)]
+
+        fig, ax = plt.subplots(figsize=(9, 8))
+
+        # 同一 case・同一フレームの CT-MR ペアを細い線で結ぶ
+        if draw_pair_links:
+            for pid in range(n_cases):
+                for t in np.unique(frame[pair == pid]):
+                    ci = np.where((pair == pid) & (frame == t) & (mod == 0))[0]
+                    mi = np.where((pair == pid) & (frame == t) & (mod == 1))[0]
+                    if ci.size and mi.size:
+                        ax.plot([emb[ci[0], 0], emb[mi[0], 0]],
+                                [emb[ci[0], 1], emb[mi[0], 1]],
+                                color=colors[pid], alpha=0.20, linewidth=0.6, zorder=1)
+
+        for m, marker, name in ((0, '^', 'CT'), (1, 'o', 'MR')):
+            sel = mod == m
+            ax.scatter(emb[sel, 0], emb[sel, 1],
+                       c=[colors[p] for p in pair[sel]],
+                       marker=marker, s=45, edgecolors='k', linewidths=0.3,
+                       alpha=0.9, zorder=2, label=name)
+
+        # 凡例1: 形 = モダリティ（フォントに日本語が無いため英語表記）
+        shape_leg = [Line2D([0], [0], marker='^', color='w', markerfacecolor='gray',
+                            markeredgecolor='k', markersize=9, label='CT (triangle)'),
+                     Line2D([0], [0], marker='o', color='w', markerfacecolor='gray',
+                            markeredgecolor='k', markersize=9, label='MR (circle)')]
+        leg1 = ax.legend(handles=shape_leg, title='shape = modality',
+                         loc='upper left', fontsize=9)
+        ax.add_artist(leg1)
+        # 凡例2: 色 = ペア(患者/case)
+        color_leg = [Line2D([0], [0], marker='s', color='w', markerfacecolor=colors[i],
+                            markeredgecolor='k', markersize=9, label=case_names[i])
+                     for i in range(n_cases)]
+        ax.legend(handles=color_leg, title='color = pair (patient)',
+                  loc='upper right', fontsize=8, ncol=1)
+
+        ax.set_title(title or 'netD feature space (t-SNE)')
+        ax.set_xlabel('t-SNE 1'); ax.set_ylabel('t-SNE 2')
+        fig.tight_layout()
+        try:
+            fig.savefig(save_path, dpi=150)
+            print(f'[tsne] saved: {save_path}  (N={N}, cases={n_cases}, perplexity={perp:.1f})')
+        finally:
+            plt.close(fig)
+
     def _run_netG(self, x, time_idx, z):
         """netG を frame 軸 (dim0 = flatten した B*T) でチャンク実行する。
 
@@ -1059,6 +1508,17 @@ class WPSBModel(BaseModel):
         fake_seq = self.fake_B
         real_seq = self.real_B
 
+        # D 特徴空間 OT 用の特徴記述子。pixel モードでは None（画像から従来どおりコスト計算）。
+        # feat は compute_G_loss で抽出済み（adv と forward 共有）。
+        fake_feat_seq = getattr(self, '_feat_fake_seq', None)
+        tgt_feat_seq = getattr(self, '_feat_tgt_seq', None)
+        use_feat = self.use_D_feat_ot and (fake_feat_seq is not None) and (tgt_feat_seq is not None)
+        # random_patch は毎 step 1 空間位置を選ぶ（バッチ・fake/tgt 共通=対応位置）
+        hw = None
+        if use_feat and getattr(self.opt, 'seq_ot_cost_space', 'pixel') == 'random_patch':
+            fh, fw = fake_feat_seq.shape[-2], fake_feat_seq.shape[-1]
+            hw = (int(torch.randint(fh, size=(1,))), int(torch.randint(fw, size=(1,))))
+
         # sequence OT がどのテンソルから構成されていて、
         if self._grad_debug_enabled:
             try:
@@ -1080,11 +1540,20 @@ class WPSBModel(BaseModel):
             seq_ot_reg = 0.0
             seq_ot_entropy = 0.0
             seq_ot_divergence = 0.0
+            seq_ot_gen_tgt = 0.0
+            seq_ot_gen_gen = 0.0
+            seq_ot_msum = 0.0
+            seq_ot_mdiag = 0.0
+            seq_ot_pident = 0.0
 
             for i in range(b):
+                ff = self._seq_descriptor(fake_feat_seq[i], hw) if use_feat else None
+                tf = self._seq_descriptor(tgt_feat_seq[i], hw) if use_feat else None
                 ot_val, terms = sequence_ot_loss(
                     fake_seq[i],
                     real_seq[i],
+                    fake_feat=ff,
+                    tgt_feat=tf,
                     solver=getattr(self.opt, 'seq_ot_solver', 'pot'),
                     reg=self.opt.lmda,
                     iters=getattr(self.opt, 'seq_ot_iters', 50),
@@ -1100,6 +1569,9 @@ class WPSBModel(BaseModel):
                     geo_scaling=getattr(self.opt, 'seq_ot_geo_scaling', 0.99),
                     geo_p=getattr(self.opt, 'seq_ot_geo_p', 2),
                     unbalanced=getattr(self.opt, 'seq_ot_unbalanced', None),
+                    debias=getattr(self.opt, 'seq_ot_debias', False),
+                    metric=getattr(self.opt, 'seq_ot_metric', 'l2'),
+                    feat_norm=getattr(self.opt, 'seq_ot_feat_norm', 'none'),
                 )
 
                 seq_ot = seq_ot + ot_val
@@ -1108,16 +1580,35 @@ class WPSBModel(BaseModel):
                     seq_ot_reg = seq_ot_reg + terms['mono_cost']
                     seq_ot_entropy = seq_ot_entropy + terms['entropy_cost']
                     seq_ot_divergence = seq_ot_divergence + terms['ot_divergence_cost']
+                    if terms.get('gen_tgt_cost') is not None:
+                        seq_ot_gen_tgt = seq_ot_gen_tgt + terms['gen_tgt_cost']
+                    if terms.get('gen_gen_cost') is not None:
+                        seq_ot_gen_gen = seq_ot_gen_gen + terms['gen_gen_cost']
+                    if terms.get('M_sum') is not None:
+                        seq_ot_msum = seq_ot_msum + terms['M_sum']
+                        seq_ot_mdiag = seq_ot_mdiag + terms['M_diag']
+                        seq_ot_pident = seq_ot_pident + terms['P_ident_err']
 
             loss_seq = seq_ot / b
             self.loss_SB_P = seq_ot_dist / b
             self.loss_SB_U = seq_ot_reg / b
             self.loss_SB_ENT = seq_ot_entropy / b
             self.loss_SB_DIV = seq_ot_divergence / b
+            self.loss_M_SUM = seq_ot_msum / b
+            self.loss_M_DIAG = seq_ot_mdiag / b
+            self.loss_P_IDENT_ERR = seq_ot_pident / b
+            # debias 時のみ: gen→tgt / gen→gen を別々にログ（loss には未使用）
+            if getattr(self.opt, 'seq_ot_debias', False):
+                self.loss_SB_GT = seq_ot_gen_tgt / b
+                self.loss_SB_GG = seq_ot_gen_gen / b
         else:
+            ff = self._seq_descriptor(fake_feat_seq, hw) if use_feat else None
+            tf = self._seq_descriptor(tgt_feat_seq, hw) if use_feat else None
             ot_val, terms = sequence_ot_loss(
                 fake_seq,
                 real_seq,
+                fake_feat=ff,
+                tgt_feat=tf,
                 solver=getattr(self.opt, 'seq_ot_solver', 'pot'),
                 reg=self.opt.lmda,
                 iters=getattr(self.opt, 'seq_ot_iters', 50),
@@ -1133,6 +1624,9 @@ class WPSBModel(BaseModel):
                 geo_scaling=getattr(self.opt, 'seq_ot_geo_scaling', 0.99),
                 geo_p=getattr(self.opt, 'seq_ot_geo_p', 2),
                 unbalanced=getattr(self.opt, 'seq_ot_unbalanced', None),
+                debias=getattr(self.opt, 'seq_ot_debias', False),
+                metric=getattr(self.opt, 'seq_ot_metric', 'l2'),
+                feat_norm=getattr(self.opt, 'seq_ot_feat_norm', 'none'),
             )
 
             loss_seq = ot_val
@@ -1141,6 +1635,15 @@ class WPSBModel(BaseModel):
                 self.loss_SB_U = terms['mono_cost']
                 self.loss_SB_ENT = terms['entropy_cost']
                 self.loss_SB_DIV = terms['ot_divergence_cost']
+                if terms.get('M_sum') is not None:
+                    self.loss_M_SUM = terms['M_sum']
+                    self.loss_M_DIAG = terms['M_diag']
+                    self.loss_P_IDENT_ERR = terms['P_ident_err']
+                # debias 時のみ: gen→tgt / gen→gen を別々にログ（loss には未使用）
+                if terms.get('gen_tgt_cost') is not None:
+                    self.loss_SB_GT = terms['gen_tgt_cost']
+                if terms.get('gen_gen_cost') is not None:
+                    self.loss_SB_GG = terms['gen_gen_cost']
 
         # sequence OT だけを単体で backward したときに、fake_seq に
         # 実際に勾配が流れているかを直接確認するデバッグ用コード。
@@ -1186,6 +1689,20 @@ class WPSBModel(BaseModel):
                         self.loss_SB_GRAD_NORM = 0.0
                         self.loss_SB_GRAD_MIN  = 0.0
                         self.loss_SB_GRAD_MAX  = 0.0
+                    # monotone(U) 項だけの勾配を切り出してログ（penalty 込みの実寄与）。
+                    # self.loss_SB_U は mono_cost(=penalty*mono_loss) のテンソル。グラフに繋がっていれば微分可。
+                    mono_term = self.loss_SB_U
+                    gu = None
+                    if torch.is_tensor(mono_term) and mono_term.requires_grad:
+                        gu = torch.autograd.grad(mono_term, fake_seq, retain_graph=True, allow_unused=True)[0]
+                    if gu is not None:
+                        self.loss_SB_U_GRAD_NORM = gu.norm().item()
+                        self.loss_SB_U_GRAD_MIN  = gu.min().item()
+                        self.loss_SB_U_GRAD_MAX  = gu.max().item()
+                    else:
+                        self.loss_SB_U_GRAD_NORM = 0.0
+                        self.loss_SB_U_GRAD_MIN  = 0.0
+                        self.loss_SB_U_GRAD_MAX  = 0.0
                 except Exception:
                     pass
 

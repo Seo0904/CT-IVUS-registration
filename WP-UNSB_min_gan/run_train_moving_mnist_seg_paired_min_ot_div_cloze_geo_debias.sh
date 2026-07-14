@@ -4,10 +4,17 @@ if [ -z "${BASH_VERSION:-}" ]; then
 fi
 
 #
-# Moving MNIST Paired Dataset用 UNSB 訓練スクリプト
-# 
+# Moving MNIST Paired Dataset用 UNSB 訓練スクリプト (geo + debias 版)
+#
 # ドメインA: オリジナルMoving MNIST
 # ドメインB: B-spline変換後のMoving MNIST
+#
+# geo 版 (run_train_..._cloze_geo.sh) と同設定だが、sequence OT を
+# solve_sample(debias=True) の Sinkhorn divergence で解く。
+#   - ot_cost = OT(gen,tgt) - ½OT(gen,gen) - ½OT(tgt,tgt)（手作り -0.5×gen-gen の正式版）
+#   - 手作り seq_ot_divergence は debias 時は内部で自動スキップされるので 0 にしてある
+#   - gen→tgt / gen→gen は 1回の計算から分離して別々にログ (SB_GT / SB_GG)
+#   - debias 経路はコスト sqeuclidean 固定 (= geo_p=2 相当)、seq_ot_normalize は無視される
 
 # スクリプトのディレクトリを取得
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -27,7 +34,7 @@ DATAROOT="${WORKSPACE_DIR}/data/org_data/moving_mnist"
 DATAROOT_B="${WORKSPACE_DIR}/data/preprocessed/bspline_transformed"
 
 # 実験名（保存先の最後のフォルダ名として使用）
-NAME="moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze_geo_gan"
+NAME="moving_mnist_seg_paired_sb_wo_GL_w_otdiv_015_cloze_geo_debias_gan"
 
 # GPU設定
 GPU_IDS=0
@@ -38,7 +45,7 @@ WANDB_PROJECT=${WANDB_PROJECT:-WP-UNSB_min_gan}
 WANDB_ENTITY=${WANDB_ENTITY:-}
 WANDB_MODE=${WANDB_MODE:-online}
 WANDB_GROUP=${WANDB_GROUP:-moving-mnist}
-WANDB_TAGS=${WANDB_TAGS:-moving-mnist,WP-UNSB_min_gan}
+WANDB_TAGS=${WANDB_TAGS:-moving-mnist,WP-UNSB_min_gan,debias}
 WANDB_IMAGE_FREQ=${WANDB_IMAGE_FREQ:-1000}
 WANDB_RUN_NAME=${WANDB_RUN_NAME:-${NAME}_${DATE}}
 
@@ -68,8 +75,11 @@ LAMBDA_NCE=0
 SEQ_OT_P_ENTROPY=${SEQ_OT_P_ENTROPY:-0}
 SEQ_OT_P_ENTROPY_PENALTY=${SEQ_OT_P_ENTROPY_PENALTY:-0.0}
 
-# sequence OT (divergence)
-SEQ_OT_DIVERGENCE=${SEQ_OT_DIVERGENCE:-1}
+# sequence OT (debias): True で divergence を ot_cost に。手作り divergence は不要
+SEQ_OT_DEBIAS=${SEQ_OT_DEBIAS:-1}
+
+# sequence OT (divergence): debias=True 時は内部で自動スキップされるので 0 にする
+SEQ_OT_DIVERGENCE=${SEQ_OT_DIVERGENCE:-0}
 SEQ_OT_DIVERGENCE_PENALTY=${SEQ_OT_DIVERGENCE_PENALTY:--0.5}
 
 # sequence OT (unbalanced): rho を渡すと unbalanced OT になる。空にすると balanced
@@ -90,7 +100,7 @@ PRINT_FREQ=${PRINT_FREQ:-1}
 DISPLAY_FREQ=${DISPLAY_FREQ:-1000}
 
 echo "======================================"
-echo "Moving MNIST Paired UNSB Training"
+echo "Moving MNIST Paired UNSB Training (geo + debias)"
 echo "======================================"
 echo "Domain A: ${DATAROOT}/mnist_test_seq.npy"
 echo "Domain B: ${DATAROOT_B}/transformed_cloze_global.npy"
@@ -133,9 +143,10 @@ Loss Weights:
   Lambda GAN: ${LAMBDA_GAN}
   Lambda SB: ${LAMBDA_SB}
   Lambda NCE: ${LAMBDA_NCE}
+  Seq OT Debias: ${SEQ_OT_DEBIAS}
   Seq OT P Entropy: ${SEQ_OT_P_ENTROPY}
   Seq OT P Entropy Penalty: ${SEQ_OT_P_ENTROPY_PENALTY}
-  Seq OT Divergence: ${SEQ_OT_DIVERGENCE}
+  Seq OT Divergence: ${SEQ_OT_DIVERGENCE} (debias=True 時は自動スキップ)
   Seq OT Divergence Penalty: ${SEQ_OT_DIVERGENCE_PENALTY}
   Seq OT Unbalanced (rho): ${SEQ_OT_UNBALANCED:-none(balanced)}
 
@@ -185,6 +196,7 @@ cmd=(python3 train.py
   --sb_mode seq_ot
   --seq_ot_normalize "none"
   --seq_ot_solver "geo"
+  --seq_ot_debias ${SEQ_OT_DEBIAS}
   --seq_ot_geo_scaling 0.99
   --seq_ot_geo_p 2
   --seq_ot_p_entropy ${SEQ_OT_P_ENTROPY}
